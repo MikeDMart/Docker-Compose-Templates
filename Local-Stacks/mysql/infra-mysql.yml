@@ -1,0 +1,43 @@
+version: '3.8'
+
+# ============================================================================
+# MYSQL CENTRAL - a8server.unids.com
+# ============================================================================
+# Stack: infra-mysql
+# Puerto: 3306 (solo interno)
+# Red: a8-network
+# ============================================================================
+
+networks:
+  a8-network:
+    driver: bridge
+    name: a8-network
+
+volumes:
+  mysql_data:
+    driver: local
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: a8-mysql-central
+    restart: unless-stopped
+    
+    environment:
+      MYSQL_ROOT_PASSWORD: RootPass123!
+      MYSQL_DATABASE: default_db
+      MYSQL_USER: a8_admin
+      MYSQL_PASSWORD: AdminPass123!
+    
+    volumes:
+      - mysql_data:/var/lib/mysql
+    
+    networks:
+      - a8-network
+    
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-u", "root", "-pRootPass123!"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
