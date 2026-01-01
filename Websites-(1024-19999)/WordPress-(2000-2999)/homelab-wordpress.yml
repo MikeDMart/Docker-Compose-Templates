@@ -1,41 +1,63 @@
 version: '3.8'
 
 services:
-  # 1. BASE DE DATOS MYSQL
+  # 1. BASE DE DATOS MYSQL 5.7 (más liviano)
   mysql-db:
-    image: mysql:8.0
+    image: mysql:5.7  # ← CAMBIADO A 5.7
     container_name: homelab-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: RootPasswordSeguro123!
+      MYSQL_ROOT_PASSWORD: RootPassword123
       MYSQL_DATABASE: wordpress
       MYSQL_USER: wordpress
-      MYSQL_PASSWORD: WordPressPassword123!
+      MYSQL_PASSWORD: WordPressPass123
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
       - homelab-network
+    # Optimizaciones para hardware limitado:
+    command: 
+      - --max_connections=50
+      - --innodb_buffer_pool_size=64M
+      - --innodb_log_file_size=24M
+      - --performance_schema=OFF
+    deploy:
+      resources:
+        limits:
+          memory: 256M  # ← LÍMITE DE MEMORIA
+        reservations:
+          memory: 128M
 
-  # 2. WORDPRESS
+  # 2. WORDPRESS (optimizado)
   wordpress:
-    image: wordpress:latest
+    image: wordpress:php8.0-apache  # ← Versión específica más estable
     container_name: homelab-wordpress
     restart: unless-stopped
     ports:
-      - "2100:80"  # Acceso local: http://192.168.1.246:2100
+      - "2100:80"
     environment:
       WORDPRESS_DB_HOST: mysql-db:3306
       WORDPRESS_DB_USER: wordpress
-      WORDPRESS_DB_PASSWORD: WordPressPassword123!
+      WORDPRESS_DB_PASSWORD: WordPressPass123
       WORDPRESS_DB_NAME: wordpress
+      # Optimizaciones PHP para baja memoria:
+      PHP_MEMORY_LIMIT: 128M
+      PHP_UPLOAD_MAX_FILESIZE: 32M
+      PHP_POST_MAX_SIZE: 32M
     volumes:
       - wordpress_data:/var/www/html
     depends_on:
       - mysql-db
     networks:
       - homelab-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
 
-  # 3. CLOUDFLARE TUNNEL (PARA ACCESO INTERNET)
+  # 3. CLOUDFLARE TUNNEL
   cloudflared-tunnel:
     image: cloudflare/cloudflared:latest
     container_name: homelab-cloudflared
