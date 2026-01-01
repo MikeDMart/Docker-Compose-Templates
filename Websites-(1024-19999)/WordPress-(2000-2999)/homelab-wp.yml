@@ -1,69 +1,20 @@
 version: '3.8'
 
-networks:
-  wordpress-network:
-    driver: bridge
-
-volumes:
-  wordpress_data:
-    driver: local
-  mysql_data:
-    driver: local
-  redis_data:
-    driver: local
-
 services:
-  # PRIMERO MySQL - SIN depends_on
   mysql:
-    image: mysql:8.0.37  # ← Versión específica
-    container_name: homelab-mysql-2000
+    image: mysql:8.0
+    container_name: test-mysql-2000
     restart: unless-stopped
     
     environment:
-      MYSQL_ROOT_PASSWORD: RootPass123!  # ← CONTRASEÑA FIJA
-      MYSQL_DATABASE: wordpress_homelab
-      MYSQL_USER: wp_homelab
-      MYSQL_PASSWORD: WpPass123!  # ← CONTRASEÑA FIJA
+      MYSQL_ROOT_PASSWORD: test123
+      MYSQL_DATABASE: testdb
     
-    command: >
-      --default-authentication-plugin=mysql_native_password
-      --character-set-server=utf8mb4
-      --collation-server=utf8mb4_unicode_ci
-      --max_allowed_packet=128M  # ← Reducir para pruebas
-      --innodb_buffer_pool_size=128M  # ← Reducir para pruebas
-      --innodb_log_file_size=48M
-    
-    volumes:
-      - mysql_data:/var/lib/mysql
-    
-    networks:
-      - wordpress-network
-    
-    healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -u root -pRootPass123! || exit 1"]
-      interval: 15s
-      timeout: 20s
-      retries: 20
-      start_period: 180s  # ← 3 minutos para iniciar
+    # SIN volumes, SIN healthcheck
 
-  # LUEGO Redis
-  redis:
-    image: redis:7.2.5-alpine  # ← Versión específica
-    container_name: homelab-redis-2000
-    restart: unless-stopped
-    
-    command: redis-server --appendonly yes --save ""
-    
-    volumes:
-      - redis_data:/data
-    
-    networks:
-      - wordpress-network
-
-  # FINALMENTE WordPress
   wordpress:
-    image: wordpress:6.5.4-php8.2-apache  # ← Versión específica
-    container_name: homelab-wordpress-2000
+    image: wordpress:latest
+    container_name: test-wordpress-2000
     restart: unless-stopped
     
     ports:
@@ -71,42 +22,10 @@ services:
     
     environment:
       WORDPRESS_DB_HOST: mysql:3306
-      WORDPRESS_DB_NAME: wordpress_homelab
-      WORDPRESS_DB_USER: wp_homelab
-      WORDPRESS_DB_PASSWORD: WpPass123!  # ← CONTRASEÑA FIJA
-      WORDPRESS_TABLE_PREFIX: wp_hl_
-      WORDPRESS_DEBUG: 1  # ← Habilitar debug temporalmente
+      WORDPRESS_DB_NAME: testdb
+      WORDPRESS_DB_USER: root
+      WORDPRESS_DB_PASSWORD: test123
     
-    volumes:
-      - wordpress_data:/var/www/html
-    
-    networks:
-      - wordpress-network
-    
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_started
-
-  # OPCIONAL phpMyAdmin
-  phpmyadmin:
-    image: phpmyadmin/phpmyadmin:5.2.1  # ← Versión específica
-    container_name: homelab-phpmyadmin-2000
-    restart: unless-stopped
-    
-    ports:
-      - "2001:80"
-    
-    environment:
-      PMA_HOST: mysql
-      PMA_PORT: 3306
-      PMA_USER: root
-      PMA_PASSWORD: RootPass123!  # ← CONTRASEÑA FIJA
-    
-    networks:
-      - wordpress-network
-    
-    depends_on:
-      mysql:
-        condition: service_healthy
+    # Espera 2 minutos
+    command: >
+      sh -c "sleep 120 && exec apache2-foreground"
