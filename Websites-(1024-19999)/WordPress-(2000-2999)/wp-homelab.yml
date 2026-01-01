@@ -1,118 +1,55 @@
 version: '3.8'
 
 services:
-  # Servidor web principal
-  wordpress:
-    image: wordpress:latest
-    container_name: wp-homelab
-    restart: unless-stopped
-    ports:
-      - "2100:80"
-      - "2101:443"
-    environment:
-      WORDPRESS_DB_HOST: db
-      WORDPRESS_DB_USER: wordpress
-      WORDPRESS_DB_PASSWORD: ${DB_PASSWORD:-ChangeMe123!}
-      WORDPRESS_DB_NAME: wordpress
-      WORDPRESS_CONFIG_EXTRA: |
-        define('WP_DEBUG', false);
-        define('WP_DEBUG_LOG', false);
-        define('WP_DEBUG_DISPLAY', false);
-        define('WP_MEMORY_LIMIT', '256M');
-        define('WP_MAX_MEMORY_LIMIT', '512M');
-    volumes:
-      - wordpress_data:/var/www/html
-      - ./themes:/var/www/html/wp-content/themes
-      - ./plugins:/var/www/html/wp-content/plugins
-      - ./uploads:/var/www/html/wp-content/uploads
-    depends_on:
-      - db
-    networks:
-      - wp-network
-
-  # Base de datos MySQL
-  db:
+  # 1. BASE DE DATOS MYSQL
+  mysql-db:
     image: mysql:8.0
-    container_name: wp-homelab-db
+    container_name: homelab-mysql
     restart: unless-stopped
-    ports:
-      - "20100:3306"
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-RootChangeMe123!}
+      MYSQL_ROOT_PASSWORD: RootPasswordSeguro123!
       MYSQL_DATABASE: wordpress
       MYSQL_USER: wordpress
-      MYSQL_PASSWORD: ${DB_PASSWORD:-ChangeMe123!}
+      MYSQL_PASSWORD: WordPressPassword123!
     volumes:
-      - db_data:/var/lib/mysql
-      - ./mysql/conf.d:/etc/mysql/conf.d:ro
-      - ./mysql/init:/docker-entrypoint-initdb.d:ro
-    command: 
-      - --max_connections=100
-      - --innodb_buffer_pool_size=256M
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
-      timeout: 20s
-      retries: 10
+      - mysql_data:/var/lib/mysql
     networks:
-      - wp-network
+      - homelab-network
 
-  # phpMyAdmin para gestión
-  phpmyadmin:
-    image: phpmyadmin:latest
-    container_name: wp-homelab-pma
+  # 2. WORDPRESS
+  wordpress:
+    image: wordpress:latest
+    container_name: homelab-wordpress
     restart: unless-stopped
     ports:
-      - "2102:80"
+      - "2100:80"  # Acceso local: http://192.168.1.246:2100
     environment:
-      PMA_HOST: db
-      PMA_PORT: 3306
-      UPLOAD_LIMIT: 128M
-      PMA_ARBITRARY: 1
-    depends_on:
-      - db
-    networks:
-      - wp-network
-
-  # Nginx como proxy inverso (opcional)
-  nginx-proxy:
-    image: nginx:alpine
-    container_name: wp-homelab-proxy
-    restart: unless-stopped
-    ports:
-      - "2103:80"
-      - "2104:443"
+      WORDPRESS_DB_HOST: mysql-db:3306
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: WordPressPassword123!
+      WORDPRESS_DB_NAME: wordpress
     volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - wordpress_data:/var/www/html
     depends_on:
-      - wordpress
+      - mysql-db
     networks:
-      - wp-network
+      - homelab-network
 
-  # Redis para caché (opcional)
-  redis:
-    image: redis:alpine
-    container_name: wp-homelab-redis
+  # 3. CLOUDFLARE TUNNEL (PARA ACCESO INTERNET)
+  cloudflared-tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: homelab-cloudflared
     restart: unless-stopped
-    ports:
-      - "2105:6379"
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-RedisPass123!}
-    volumes:
-      - redis_data:/data
+    command: tunnel --no-autoupdate run --token eyJhIjoiNmRjZGNiYWI4YmMxMmIzNzhjZDUxNjA4NWUwYmRjMWUiLCJ0IjoiOGRhNGViOWItOTQwNi00NzU2LWJmYTktOGVmZDExZDA5ZWY5IiwicyI6Ik5HVmxZMll4TlRndFlXTmxPUzAwTVRRNExXRTFPR0l0TUdaa05EUmxNREZtWXpjNCJ9
     networks:
-      - wp-network
+      - homelab-network
 
 volumes:
+  mysql_data:
+    driver: local
   wordpress_data:
-    driver: local
-  db_data:
-    driver: local
-  redis_data:
     driver: local
 
 networks:
-  wp-network:
+  homelab-network:
     driver: bridge
-    ipam:
-      config:
-        - subnet: 172.20.0.0/16
