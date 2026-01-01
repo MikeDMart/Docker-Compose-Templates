@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  wordpress:
+    image: wordpress:latest
+    container_name: wp-homelab
+    restart: unless-stopped
+    ports:
+      - "2100:80"  # WordPress principal
+      - "2101:443" # HTTPS opcional
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: ${DB_PASSWORD:-ChangeMe123!}
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_TABLE_PREFIX: wp_
+      WORDPRESS_DEBUG: 0
+    volumes:
+      - wordpress_data:/var/www/html
+      - ./uploads.ini:/usr/local/etc/php/conf.d/uploads.ini
+    depends_on:
+      - db
+    networks:
+      - wp_network
+
+  db:
+    image: mysql:8.0
+    container_name: wp-homelab-db
+    restart: unless-stopped
+    ports:
+      - "20100:3306"  # Puerto MySQL expuesto
+    environment:
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: ${DB_PASSWORD:-ChangeMe123!}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-RootChangeMe123!}
+      MYSQL_RANDOM_ROOT_PASSWORD: "no"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./mysql.cnf:/etc/mysql/conf.d/custom.cnf
+    command: --default-authentication-plugin=mysql_native_password
+    networks:
+      - wp_network
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: wp-homelab-phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "2102:80"  # phpMyAdmin
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      UPLOAD_LIMIT: 64M
+    depends_on:
+      - db
+    networks:
+      - wp_network
+
+volumes:
+  wordpress_data:
+  db_data:
+
+networks:
+  wp_network:
+    driver: bridge
