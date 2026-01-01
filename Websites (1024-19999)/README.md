@@ -1,671 +1,622 @@
-# 🚀 WordPress Docker - Usage Guide
+# 🌐 Websites Configuration (Ports 1024-19999)
 
-Complete guide for managing your WordPress Docker installation.
+> Configuration files and deployment manifests for all website services
 
-## 📋 Table of Contents
+## 📋 Overview
 
-- [Initial Setup](#initial-setup)
-- [Daily Operations](#daily-operations)
-- [WP-CLI Commands](#wp-cli-commands)
-- [Database Management](#database-management)
-- [Backups & Restore](#backups--restore)
-- [Performance Tuning](#performance-tuning)
-- [Troubleshooting](#troubleshooting)
-- [Security](#security)
+This directory contains YAML configuration files for all website deployments across the `1024-19999` port range. Each website has its own configuration file that defines ports, dependencies, environments, and deployment settings.
 
-## 🏁 Initial Setup
+## 🎯 Port Allocation
 
-### 1. First Time Installation
+| Port Range | Category | Examples |
+|------------|----------|----------|
+| `1024-1999` | WordPress Multisite | Networks, multi-tenant installations |
+| `2000-2999` | WordPress Single | Individual WordPress sites |
+| `3000-3999` | NextCloud | Cloud storage and collaboration |
+| `4000-4999` | Ghost Blogs | Publishing platforms |
+| `5000-5999` | Static Sites | Hugo, Jekyll, Gatsby, plain HTML |
+| `6000-6999` | Development/Staging | Testing environments |
+| `7000-7999` | Landing Pages | Marketing sites, product pages |
+| `8000-8999` | E-commerce | WooCommerce, Shopify, Magento |
+| `9000-9999` | Portfolios | Personal/corporate portfolios |
+| `10000-19999` | Reserved | Future expansion |
 
-```bash
-# Run the setup script
-./setup.sh
+## 📁 Directory Structure
 
-# This will:
-# - Create directory structure
-# - Copy .env.example to .env
-# - Set proper permissions
-# - Validate configuration
+```
+websites/
+├── README.md                          # This file
+├── wordpress-single/                  # Ports 2000-2999
+│   ├── company-blog-2001.yml
+│   ├── client-site-2002.yml
+│   └── personal-site-2003.yml
+├── wordpress-multisite/               # Ports 1024-1999
+│   └── agency-network-1024.yml
+├── ghost/                             # Ports 4000-4999
+│   ├── tech-blog-4001.yml
+│   └── news-site-4002.yml
+├── static/                            # Ports 5000-5999
+│   ├── landing-page-5001.yml
+│   └── docs-site-5002.yml
+├── ecommerce/                         # Ports 8000-8999
+│   └── online-store-8001.yml
+├── development/                       # Ports 6000-6999
+│   ├── staging-2001-dev-6001.yml
+│   └── testing-environment-6002.yml
+├── templates/                         # Configuration templates
+│   ├── wordpress-template.yml
+│   ├── ghost-template.yml
+│   └── static-template.yml
+└── scripts/                           # Management scripts
+    ├── deploy-website.sh
+    ├── backup-website.sh
+    └── check-health.sh
 ```
 
-### 2. Edit Environment Variables
+## 📝 Configuration File Format
 
-```bash
-nano .env
-```
-
-**Required changes:**
-- `PORT` - Your port number (2000-2999)
-- `SITE_NAME` - Unique identifier
-- `DOMAIN` - Your domain name
-- `DB_PASSWORD` - Strong database password
-- `DB_ROOT_PASSWORD` - Strong root password
-
-### 3. Start Services
-
-```bash
-# Start all services
-docker-compose up -d
-
-# Check status
-docker-compose ps
-
-# View logs
-docker-compose logs -f
-```
-
-### 4. Access WordPress
-
-```bash
-# Open in browser
-http://localhost:2001
-
-# Complete WordPress installation wizard:
-# 1. Select language
-# 2. Create admin account
-# 3. Done!
-```
-
-## 🔧 Daily Operations
-
-### Starting & Stopping
-
-```bash
-# Start services
-docker-compose up -d
-
-# Stop services
-docker-compose down
-
-# Restart services
-docker-compose restart
-
-# Restart specific service
-docker-compose restart wordpress
-```
-
-### Viewing Logs
-
-```bash
-# All services
-docker-compose logs -f
-
-# Specific service
-docker-compose logs -f wordpress
-docker-compose logs -f mysql
-docker-compose logs -f redis
-
-# Last 100 lines
-docker-compose logs --tail=100
-
-# Since specific time
-docker-compose logs --since 2024-01-01T00:00:00
-```
-
-### Checking Status
-
-```bash
-# Container status
-docker-compose ps
-
-# Resource usage
-docker stats
-
-# Detailed info
-docker inspect company-blog-2001
-```
-
-### Updating Images
-
-```bash
-# Pull latest images
-docker-compose pull
-
-# Recreate containers with new images
-docker-compose up -d --force-recreate
-
-# Remove old images
-docker image prune -a
-```
-
-## 🛠️ WP-CLI Commands
-
-WP-CLI is included for command-line WordPress management.
-
-### Accessing WP-CLI
-
-```bash
-# Run with docker-compose profiles
-docker-compose --profile tools run --rm wpcli <command>
-
-# Or directly
-docker-compose exec wordpress wp <command> --allow-root
-```
-
-### Common WP-CLI Commands
-
-```bash
-# Get WordPress info
-docker-compose exec wordpress wp core version --allow-root
-
-# Update WordPress
-docker-compose exec wordpress wp core update --allow-root
-
-# List plugins
-docker-compose exec wordpress wp plugin list --allow-root
-
-# Install plugin
-docker-compose exec wordpress wp plugin install redis-cache --activate --allow-root
-
-# Update all plugins
-docker-compose exec wordpress wp plugin update --all --allow-root
-
-# List users
-docker-compose exec wordpress wp user list --allow-root
-
-# Create admin user
-docker-compose exec wordpress wp user create admin admin@example.com \
-    --role=administrator --user_pass=password --allow-root
-
-# Search and replace (useful for domain changes)
-docker-compose exec wordpress wp search-replace 'http://old-domain.com' 'https://new-domain.com' \
-    --all-tables --allow-root
-
-# Clear cache
-docker-compose exec wordpress wp cache flush --allow-root
-
-# Database optimization
-docker-compose exec wordpress wp db optimize --allow-root
-
-# Export database
-docker-compose exec wordpress wp db export - --allow-root > backup.sql
-
-# Check site health
-docker-compose exec wordpress wp site health --allow-root
-```
-
-### Install Redis Object Cache
-
-```bash
-# Install plugin
-docker-compose exec wordpress wp plugin install redis-cache --activate --allow-root
-
-# Enable Redis
-docker-compose exec wordpress wp redis enable --allow-root
-
-# Check Redis status
-docker-compose exec wordpress wp redis status --allow-root
-```
-
-## 💾 Database Management
-
-### Using phpMyAdmin
-
-```bash
-# Start phpMyAdmin (if not running)
-docker-compose --profile tools up -d phpmyadmin
-
-# Access at: http://localhost:8001
-# Login: root / [DB_ROOT_PASSWORD from .env]
-```
-
-### Direct MySQL Access
-
-```bash
-# Open MySQL shell
-docker-compose exec mysql mysql -u root -p
-
-# Or with password from env
-source .env
-docker-compose exec mysql mysql -u root -p${DB_ROOT_PASSWORD} ${DB_NAME}
-```
-
-### Database Operations
-
-```bash
-# Export database
-docker-compose exec mysql mysqldump \
-    -u root -p${DB_ROOT_PASSWORD} \
-    ${DB_NAME} > backup-$(date +%Y%m%d).sql
-
-# Import database
-docker-compose exec -T mysql mysql \
-    -u root -p${DB_ROOT_PASSWORD} \
-    ${DB_NAME} < backup.sql
-
-# Optimize database
-docker-compose exec mysql mysqlcheck \
-    -u root -p${DB_ROOT_PASSWORD} \
-    --optimize ${DB_NAME}
-
-# Repair database
-docker-compose exec mysql mysqlcheck \
-    -u root -p${DB_ROOT_PASSWORD} \
-    --repair ${DB_NAME}
-```
-
-## 💾 Backups & Restore
-
-### Automatic Backups
-
-```bash
-# Start backup service
-docker-compose --profile backup up -d backup
-
-# Backups run automatically at 2 AM daily
-# Location: ./backups/
-```
-
-### Manual Backup
-
-```bash
-# Run backup script
-./backup.sh
-
-# Backup location: ./backups/[TIMESTAMP]/
-# Contains:
-#   - database.sql
-#   - wordpress-files.tar.gz
-#   - .env
-#   - docker-compose.yml
-```
-
-### Restore from Backup
-
-```bash
-# List available backups
-ls -lh backups/
-
-# Restore from specific backup
-./restore.sh backups/20250101_020000
-
-# Warning: This will overwrite current data!
-```
-
-### Offsite Backup to S3
-
-```bash
-# Install AWS CLI
-apt-get install awscli
-
-# Configure AWS credentials
-aws configure
-
-# Upload backup
-aws s3 sync ./backups/ s3://my-bucket/wordpress-backups/
-
-# Automated with cron
-cat > /etc/cron.daily/wordpress-backup << 'EOF'
-#!/bin/bash
-cd /path/to/wordpress
-./backup.sh
-aws s3 sync ./backups/ s3://my-bucket/wordpress-backups/
-find ./backups/ -mtime +30 -delete
-EOF
-chmod +x /etc/cron.daily/wordpress-backup
-```
-
-## ⚡ Performance Tuning
-
-### Enable Redis Cache
-
-```bash
-# Install and activate plugin
-docker-compose exec wordpress wp plugin install redis-cache --activate --allow-root
-
-# Enable Redis
-docker-compose exec wordpress wp redis enable --allow-root
-
-# Verify it's working
-docker-compose exec wordpress wp redis status --allow-root
-
-# Check Redis stats
-docker-compose exec redis redis-cli INFO stats
-```
-
-### Monitor Redis
-
-```bash
-# Real-time monitoring
-docker-compose exec redis redis-cli MONITOR
-
-# Check memory usage
-docker-compose exec redis redis-cli INFO memory
-
-# Check connected clients
-docker-compose exec redis redis-cli CLIENT LIST
-
-# Flush cache if needed
-docker-compose exec redis redis-cli FLUSHALL
-```
-
-### MySQL Optimization
-
-```bash
-# Check MySQL variables
-docker-compose exec mysql mysql -u root -p${DB_ROOT_PASSWORD} \
-    -e "SHOW VARIABLES LIKE 'innodb_buffer_pool_size';"
-
-# Analyze slow queries
-docker-compose exec mysql cat /var/log/mysql/slow-query.log
-
-# Check table sizes
-docker-compose exec mysql mysql -u root -p${DB_ROOT_PASSWORD} -e "
-    SELECT table_name, 
-           ROUND(((data_length + index_length) / 1024 / 1024), 2) AS 'Size (MB)'
-    FROM information_schema.TABLES 
-    WHERE table_schema = '${DB_NAME}'
-    ORDER BY (data_length + index_length) DESC;"
-```
-
-### Monitor Resource Usage
-
-```bash
-# Real-time stats
-docker stats
-
-# Resource limits
-docker-compose exec wordpress free -h
-docker-compose exec wordpress df -h
-
-# Apache status (if mod_status enabled)
-curl http://localhost:2001/server-status
-```
-
-## 🐛 Troubleshooting
-
-### Site Not Loading
-
-```bash
-# 1. Check if containers are running
-docker-compose ps
-
-# 2. Check logs for errors
-docker-compose logs --tail=50
-
-# 3. Check if port is accessible
-curl -I http://localhost:2001
-
-# 4. Check database connection
-docker-compose exec wordpress wp db check --allow-root
-
-# 5. Restart services
-docker-compose restart
-```
-
-### Database Connection Errors
-
-```bash
-# Check MySQL is running
-docker-compose ps mysql
-
-# Check MySQL logs
-docker-compose logs mysql
-
-# Test database connection
-docker-compose exec wordpress wp db check --allow-root
-
-# Verify environment variables
-docker-compose exec wordpress env | grep WORDPRESS_DB
-```
-
-### Permission Issues
-
-```bash
-# Fix WordPress file permissions
-docker-compose exec wordpress chown -R www-data:www-data /var/www/html
-
-# Fix upload directory
-docker-compose exec wordpress chmod -R 755 /var/www/html/wp-content/uploads
-```
-
-### Redis Not Working
-
-```bash
-# Check Redis is running
-docker-compose ps redis
-
-# Check Redis logs
-docker-compose logs redis
-
-# Test Redis connection
-docker-compose exec redis redis-cli PING
-# Should return: PONG
-
-# Check WordPress Redis plugin status
-docker-compose exec wordpress wp redis status --allow-root
-```
-
-### High CPU/Memory Usage
-
-```bash
-# Check resource usage
-docker stats
-
-# Check slow queries
-docker-compose exec mysql cat /var/log/mysql/slow-query.log
-
-# Identify problematic plugins
-docker-compose exec wordpress wp plugin list --allow-root
-
-# Disable all plugins
-docker-compose exec wordpress wp plugin deactivate --all --allow-root
-
-# Enable one by one to find culprit
-docker-compose exec wordpress wp plugin activate [plugin-name] --allow-root
-```
-
-### Site Running Slow
-
-```bash
-# 1. Enable query monitor plugin
-docker-compose exec wordpress wp plugin install query-monitor --activate --allow-root
-
-# 2. Check Redis cache hit rate
-docker-compose exec redis redis-cli INFO stats | grep keyspace
-
-# 3. Optimize database
-docker-compose exec wordpress wp db optimize --allow-root
-
-# 4. Clear all caches
-docker-compose exec wordpress wp cache flush --allow-root
-docker-compose exec redis redis-cli FLUSHALL
-
-# 5. Check Apache/PHP-FPM workers
-docker-compose exec wordpress ps aux | grep apache
-```
-
-### Clean Up Docker
-
-```bash
-# Remove stopped containers
-docker container prune
-
-# Remove unused images
-docker image prune -a
-
-# Remove unused volumes
-docker volume prune
-
-# Remove unused networks
-docker network prune
-
-# Nuclear option (removes everything unused)
-docker system prune -a --volumes
-```
-
-## 🔒 Security
-
-### Update WordPress Core
-
-```bash
-# Check for updates
-docker-compose exec wordpress wp core check-update --allow-root
-
-# Update to latest
-docker-compose exec wordpress wp core update --allow-root
-
-# Update database
-docker-compose exec wordpress wp core update-db --allow-root
-```
-
-### Update Plugins
-
-```bash
-# List outdated plugins
-docker-compose exec wordpress wp plugin list --update=available --allow-root
-
-# Update all plugins
-docker-compose exec wordpress wp plugin update --all --allow-root
-
-# Update specific plugin
-docker-compose exec wordpress wp plugin update [plugin-name] --allow-root
-```
-
-### Security Hardening
-
-```bash
-# Change admin username (never use 'admin')
-docker-compose exec wordpress wp user create newadmin admin@example.com \
-    --role=administrator --allow-root
-docker-compose exec wordpress wp user delete admin --reassign=newadmin --allow-root
-
-# Change table prefix if still using wp_
-docker-compose exec wordpress wp db prefix --allow-root
-
-# Install security plugin
-docker-compose exec wordpress wp plugin install wordfence --activate --allow-root
-
-# Disable file editing
-# (Already configured in docker-compose.yml via WORDPRESS_CONFIG_EXTRA)
-
-# Check for vulnerable plugins
-docker-compose exec wordpress wp plugin list --allow-root
-```
-
-### SSL/HTTPS Configuration
-
-```bash
-# Force HTTPS (after SSL certificate is installed)
-docker-compose exec wordpress wp search-replace 'http://yoursite.com' 'https://yoursite.com' \
-    --all-tables --allow-root
-
-# Or use Really Simple SSL plugin
-docker-compose exec wordpress wp plugin install really-simple-ssl --activate --allow-root
-```
-
-### Regular Security Checks
-
-```bash
-# Check file integrity
-docker-compose exec wordpress wp core verify-checksums --allow-root
-
-# Scan for malware (with Wordfence)
-docker-compose exec wordpress wp wordfence scan --allow-root
-
-# Check user permissions
-docker-compose exec wordpress wp user list --allow-root
-
-# Review installed plugins
-docker-compose exec wordpress wp plugin list --allow-root
-```
-
-## 📊 Monitoring
-
-### Setup Prometheus Monitoring
+### Standard YAML Structure
 
 ```yaml
-# Add to docker-compose.yml
-  wordpress-exporter:
-    image: prometheuscommunity/wordpress-exporter
-    environment:
-      WORDPRESS_DB_HOST: mysql:3306
-      WORDPRESS_DB_USER: ${DB_USER}
-      WORDPRESS_DB_PASSWORD: ${DB_PASSWORD}
-      WORDPRESS_DB_NAME: ${DB_NAME}
+# company-blog-2001.yml
+version: "1.0"
+
+metadata:
+  name: "Company Blog"
+  slug: "company-blog"
+  description: "Main corporate blog for company.com"
+  owner: "Marketing Team"
+  contact: "marketing@company.com"
+  created: "2025-01-15"
+  updated: "2025-01-20"
+  
+service:
+  type: "wordpress-single"
+  port: 2001
+  category: "WordPress Single"
+  port_range: "2000-2999"
+  
+environment:
+  production:
+    domain: "blog.company.com"
+    port: 2001
+    ssl: true
+    status: "active"
+  staging:
+    domain: "staging-blog.company.com"
+    port: 6001
+    ssl: true
+    status: "active"
+  development:
+    domain: "dev-blog.company.local"
+    port: 6002
+    ssl: false
+    status: "active"
+
+docker:
+  image: "wordpress:6.4-php8.2-apache"
+  container_name: "company-blog-2001"
+  restart_policy: "unless-stopped"
+  
+dependencies:
+  database:
+    type: "mysql"
+    port: 20001
+    name: "company_blog_db"
+    user: "wp_user"
+    host: "mysql"
+  cache:
+    type: "redis"
+    port: 21001
+    host: "redis"
+  storage:
+    type: "minio"
+    port: 43001
+    bucket: "company-blog-media"
+
+resources:
+  memory: "512M"
+  cpu: "1.0"
+  disk: "20GB"
+  
+backup:
+  enabled: true
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  retention_days: 30
+  destination: "s3://backups/company-blog/"
+  
+monitoring:
+  health_check: "/wp-admin/admin-ajax.php?action=health-check"
+  uptime_check: true
+  alert_email: "ops@company.com"
+  
+security:
+  firewall_rules:
+    - "allow from 0.0.0.0/0"
+  rate_limit: "100/minute"
+  fail2ban: true
+  ssl_redirect: true
+  
+performance:
+  cache_enabled: true
+  cdn_enabled: false
+  compression: true
+  lazy_loading: true
+
+plugins:
+  - "wp-super-cache"
+  - "wordfence"
+  - "contact-form-7"
+  - "yoast-seo"
+  
+theme:
+  name: "twentytwentyfour"
+  child_theme: "company-custom"
+
+notes: |
+  Main company blog. Receives moderate traffic (~10k visits/day).
+  Content updated 2-3 times per week by marketing team.
+  Integrated with company newsletter system.
+```
+
+## 🚀 Quick Start
+
+### 1. Create New Website Configuration
+
+```bash
+# Copy template
+cp templates/wordpress-template.yml wordpress-single/my-site-2010.yml
+
+# Edit configuration
+nano wordpress-single/my-site-2010.yml
+
+# Validate configuration
+./scripts/validate-config.sh my-site-2010.yml
+```
+
+### 2. Deploy Website
+
+```bash
+# Deploy using the configuration
+./scripts/deploy-website.sh wordpress-single/my-site-2010.yml
+
+# Check status
+./scripts/check-health.sh 2010
+```
+
+### 3. Access Website
+
+```bash
+# Local access
+curl http://localhost:2010
+
+# With domain (after DNS setup)
+curl https://my-site.company.com
+```
+
+## 📦 Configuration Templates
+
+### WordPress Single Site Template
+
+```yaml
+# templates/wordpress-template.yml
+version: "1.0"
+
+metadata:
+  name: "SITE_NAME"
+  slug: "SITE_SLUG"
+  description: "SITE_DESCRIPTION"
+  owner: "OWNER_NAME"
+  contact: "OWNER_EMAIL"
+  created: "YYYY-MM-DD"
+  
+service:
+  type: "wordpress-single"
+  port: PORT_NUMBER  # 2000-2999
+  category: "WordPress Single"
+  
+environment:
+  production:
+    domain: "DOMAIN.com"
+    port: PORT_NUMBER
+    ssl: true
+    
+docker:
+  image: "wordpress:latest"
+  container_name: "SLUG-PORT"
+  
+dependencies:
+  database:
+    type: "mysql"
+    port: 20001
+    name: "DB_NAME"
+    user: "DB_USER"
+```
+
+### Ghost Blog Template
+
+```yaml
+# templates/ghost-template.yml
+version: "1.0"
+
+metadata:
+  name: "BLOG_NAME"
+  slug: "BLOG_SLUG"
+  owner: "OWNER_NAME"
+  
+service:
+  type: "ghost"
+  port: PORT_NUMBER  # 4000-4999
+  category: "Ghost Blogs"
+  
+environment:
+  production:
+    url: "https://DOMAIN.com"
+    port: PORT_NUMBER
+    
+docker:
+  image: "ghost:5-alpine"
+  container_name: "SLUG-PORT"
+  
+dependencies:
+  database:
+    type: "mysql"
+    port: 20002
+    name: "ghost_DB_NAME"
+```
+
+### Static Site Template
+
+```yaml
+# templates/static-template.yml
+version: "1.0"
+
+metadata:
+  name: "SITE_NAME"
+  slug: "SITE_SLUG"
+  type: "static"
+  
+service:
+  type: "static"
+  port: PORT_NUMBER  # 5000-5999
+  category: "Static Sites"
+  
+docker:
+  image: "nginx:alpine"
+  container_name: "SLUG-PORT"
+  
+build:
+  framework: "hugo"  # hugo, jekyll, gatsby, next, etc.
+  build_command: "hugo"
+  output_dir: "public"
+```
+
+## 🛠️ Management Scripts
+
+### Deploy Script
+
+```bash
+#!/bin/bash
+# scripts/deploy-website.sh
+
+CONFIG_FILE=$1
+
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "Error: Configuration file not found"
+    exit 1
+fi
+
+# Parse YAML and deploy
+echo "Deploying website from $CONFIG_FILE..."
+
+# Extract values using yq
+NAME=$(yq e '.metadata.name' $CONFIG_FILE)
+PORT=$(yq e '.service.port' $CONFIG_FILE)
+TYPE=$(yq e '.service.type' $CONFIG_FILE)
+
+echo "Deploying: $NAME on port $PORT"
+
+# Generate docker-compose.yml
+cat > "/tmp/docker-compose-$PORT.yml" <<EOF
+version: '3.8'
+services:
+  website:
+    image: $(yq e '.docker.image' $CONFIG_FILE)
+    container_name: $(yq e '.docker.container_name' $CONFIG_FILE)
     ports:
-      - "9117:9117"
+      - "$PORT:80"
+    restart: $(yq e '.docker.restart_policy' $CONFIG_FILE)
+    environment:
+      WORDPRESS_DB_HOST: $(yq e '.dependencies.database.host' $CONFIG_FILE):$(yq e '.dependencies.database.port' $CONFIG_FILE)
+      WORDPRESS_DB_NAME: $(yq e '.dependencies.database.name' $CONFIG_FILE)
+      WORDPRESS_DB_USER: $(yq e '.dependencies.database.user' $CONFIG_FILE)
+      WORDPRESS_DB_PASSWORD: \${DB_PASSWORD}
+EOF
+
+# Deploy
+docker-compose -f "/tmp/docker-compose-$PORT.yml" up -d
+
+echo "✓ Deployed successfully on port $PORT"
 ```
 
-### Health Checks
+### Health Check Script
 
 ```bash
-# Site health check
-curl -I http://localhost:2001
+#!/bin/bash
+# scripts/check-health.sh
 
-# WordPress API health
-curl http://localhost:2001/wp-json/
+PORT=$1
 
-# Database health
-docker-compose exec mysql mysqladmin ping -u root -p${DB_ROOT_PASSWORD}
+if [ -z "$PORT" ]; then
+    echo "Usage: $0 <port>"
+    exit 1
+fi
 
-# Redis health
-docker-compose exec redis redis-cli PING
+# Find config file
+CONFIG=$(find . -name "*-$PORT.yml" | head -1)
+
+if [ -z "$CONFIG" ]; then
+    echo "No configuration found for port $PORT"
+    exit 1
+fi
+
+NAME=$(yq e '.metadata.name' $CONFIG)
+HEALTH_CHECK=$(yq e '.monitoring.health_check' $CONFIG)
+
+echo "Checking health of $NAME on port $PORT..."
+
+# Check if port is listening
+if ! nc -z localhost $PORT; then
+    echo "✗ Port $PORT is not responding"
+    exit 1
+fi
+
+# Check HTTP response
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:$PORT)
+
+if [ "$HTTP_CODE" = "200" ]; then
+    echo "✓ $NAME is healthy (HTTP $HTTP_CODE)"
+    exit 0
+else
+    echo "✗ $NAME returned HTTP $HTTP_CODE"
+    exit 1
+fi
 ```
 
-## 🔄 Migration
-
-### Migrate to Another Server
+### Backup Script
 
 ```bash
-# 1. Backup on old server
-./backup.sh
+#!/bin/bash
+# scripts/backup-website.sh
 
-# 2. Copy backup to new server
-scp -r backups/[TIMESTAMP] user@newserver:/path/
+PORT=$1
+DATE=$(date +%Y%m%d_%H%M%S)
 
-# 3. Setup on new server
-./setup.sh
+CONFIG=$(find . -name "*-$PORT.yml" | head -1)
+NAME=$(yq e '.metadata.slug' $CONFIG)
+BACKUP_DEST=$(yq e '.backup.destination' $CONFIG)
 
-# 4. Restore backup
-./restore.sh backups/[TIMESTAMP]
+echo "Backing up $NAME (port $PORT)..."
 
-# 5. Update site URL
-docker-compose exec wordpress wp search-replace \
-    'http://oldserver.com' 'http://newserver.com' \
-    --all-tables --allow-root
+# Backup database
+DB_PORT=$(yq e '.dependencies.database.port' $CONFIG)
+DB_NAME=$(yq e '.dependencies.database.name' $CONFIG)
+DB_USER=$(yq e '.dependencies.database.user' $CONFIG)
+
+docker exec mysql-$DB_PORT mysqldump -u$DB_USER -p$DB_PASSWORD $DB_NAME > "/tmp/${NAME}_db_${DATE}.sql"
+
+# Backup files
+docker exec $NAME-$PORT tar czf /tmp/files.tar.gz /var/www/html
+docker cp $NAME-$PORT:/tmp/files.tar.gz "/tmp/${NAME}_files_${DATE}.tar.gz"
+
+# Upload to S3 or destination
+aws s3 cp "/tmp/${NAME}_db_${DATE}.sql" "$BACKUP_DEST"
+aws s3 cp "/tmp/${NAME}_files_${DATE}.tar.gz" "$BACKUP_DEST"
+
+echo "✓ Backup completed: ${NAME}_${DATE}"
 ```
 
-### Change Domain
+## 🔐 Security Best Practices
+
+### 1. Environment Variables
+
+Never store credentials in YAML files. Use `.env` files:
 
 ```bash
-# Update site URL in database
-docker-compose exec wordpress wp search-replace \
-    'https://old-domain.com' 'https://new-domain.com' \
-    --all-tables --allow-root
-
-# Clear cache
-docker-compose exec wordpress wp cache flush --allow-root
-docker-compose exec redis redis-cli FLUSHALL
-
-# Update .env file
-nano .env
-# Change DOMAIN and SITE_URL
-
-# Restart containers
-docker-compose restart
+# .env
+DB_PASSWORD=secure_password_here
+REDIS_PASSWORD=redis_secure_pass
+MINIO_SECRET_KEY=minio_secret_key
 ```
 
----
+### 2. Firewall Configuration
+
+```bash
+# Allow website ports (1024-19999)
+sudo ufw allow 1024:19999/tcp comment "Website Services"
+
+# Or specific ports only
+sudo ufw allow 2001/tcp comment "Company Blog"
+sudo ufw allow 4001/tcp comment "Tech Blog"
+```
+
+### 3. SSL/TLS Certificates
+
+Use Let's Encrypt with automatic renewal:
+
+```yaml
+# In your configuration
+security:
+  ssl_enabled: true
+  ssl_provider: "letsencrypt"
+  ssl_email: "admin@company.com"
+  auto_renew: true
+```
+
+## 📊 Monitoring Dashboard
+
+### Grafana Query Examples
+
+```promql
+# Website uptime by port range
+up{port_range="2000-2999"}
+
+# Response time for WordPress sites
+http_request_duration_seconds{service_type="wordpress"}
+
+# Traffic by website
+rate(http_requests_total{port=~"2.*"}[5m])
+```
+
+## 🔄 Common Operations
+
+### Add New WordPress Site
+
+```bash
+# 1. Find available port
+./scripts/find-available-port.sh 2000 2999
+
+# 2. Create configuration
+cp templates/wordpress-template.yml wordpress-single/new-site-2015.yml
+
+# 3. Edit configuration
+nano wordpress-single/new-site-2015.yml
+
+# 4. Deploy
+./scripts/deploy-website.sh wordpress-single/new-site-2015.yml
+
+# 5. Configure DNS
+# Point new-site.company.com -> YOUR_SERVER_IP
+
+# 6. Setup SSL
+certbot --nginx -d new-site.company.com
+```
+
+### Migrate Existing Site
+
+```bash
+# 1. Backup old site
+./scripts/backup-website.sh 8080  # Old port
+
+# 2. Create new config with proper port (e.g., 2020)
+cp templates/wordpress-template.yml wordpress-single/migrated-site-2020.yml
+
+# 3. Deploy new instance
+./scripts/deploy-website.sh wordpress-single/migrated-site-2020.yml
+
+# 4. Import backup
+./scripts/restore-backup.sh 2020 /path/to/backup.sql
+
+# 5. Update DNS
+# Point domain -> new port
+
+# 6. Stop old instance
+docker stop old-site-8080
+```
+
+### Scale WordPress Site
+
+```yaml
+# For high-traffic sites, deploy multiple instances
+
+environment:
+  production:
+    instances:
+      - port: 2001
+        primary: true
+      - port: 2011
+        replica: true
+      - port: 2021
+        replica: true
+    load_balancer:
+      port: 40001
+      algorithm: "least_conn"
+```
+
+## 📈 Capacity Planning
+
+### Port Usage Tracking
+
+```bash
+#!/bin/bash
+# Track port usage per category
+
+echo "WordPress Single (2000-2999): $(ls wordpress-single/*.yml | wc -l)/1000"
+echo "Ghost Blogs (4000-4999): $(ls ghost/*.yml | wc -l)/1000"
+echo "Static Sites (5000-5999): $(ls static/*.yml | wc -l)/1000"
+echo "E-commerce (8000-8999): $(ls ecommerce/*.yml | wc -l)/1000"
+```
+
+### Alert When Capacity Reaches 80%
+
+```yaml
+# prometheus alert rule
+- alert: PortRangeCapacity
+  expr: (count(website_active{port_range="2000-2999"}) / 1000) > 0.8
+  annotations:
+    summary: "WordPress port range is 80% full"
+    action: "Consider expanding range or cleanup"
+```
+
+## 🧹 Maintenance
+
+### Weekly Tasks
+
+```bash
+# Check all websites health
+for config in **/*.yml; do
+    port=$(yq e '.service.port' $config)
+    ./scripts/check-health.sh $port
+done
+
+# Update all WordPress cores
+./scripts/update-wordpress.sh --all
+
+# Clean up old backups
+./scripts/cleanup-backups.sh --older-than 30
+```
+
+### Monthly Tasks
+
+```bash
+# Audit port usage
+./scripts/audit-ports.sh
+
+# Review and remove unused sites
+./scripts/list-inactive.sh
+
+# Update documentation
+./scripts/generate-inventory.sh > INVENTORY.md
+```
 
 ## 📚 Additional Resources
 
-- [Official WordPress Documentation](https://wordpress.org/support/)
-- [WP-CLI Handbook](https://make.wordpress.org/cli/handbook/)
-- [Docker Documentation](https://docs.docker.com/)
-- [MySQL Performance Tuning](https://dev.mysql.com/doc/refman/8.0/en/optimization.html)
-- [Redis Documentation](https://redis.io/documentation)
+- [Main Port Ranges Documentation](../README.md)
+- [WordPress Configuration Best Practices](./docs/wordpress-best-practices.md)
+- [Ghost Blog Setup Guide](./docs/ghost-setup.md)
+- [Static Site Deployment](./docs/static-deployment.md)
+- [Troubleshooting Guide](./docs/troubleshooting.md)
 
-## 🆘 Getting Help
+## 🤝 Contributing
 
-If you encounter issues:
+When adding new website configurations:
 
-1. Check logs: `docker-compose logs -f`
-2. Verify configuration: `docker-compose config`
-3. Check container status: `docker-compose ps`
-4. Review this guide's troubleshooting section
-5. Check Docker and WordPress forums
+1. Use the appropriate template from `templates/`
+2. Follow the naming convention: `[category]/[slug]-[port].yml`
+3. Validate your configuration: `./scripts/validate-config.sh`
+4. Document special requirements in the `notes` field
+5. Submit a PR with your changes
+
+## 📝 Notes
+
+- Always use HTTPS in production
+- Keep staging and production ports separated
+- Document all custom configurations
+- Regular backups are automated but verify them monthly
+- Monitor disk usage as WordPress sites grow over time
 
 ---
 
-**Remember:** Always backup before making changes!
+**Last Updated:** December 2025  
+**Total Sites:** Run `./scripts/count-sites.sh` for current count  
+**Port Capacity:** 19,000 available ports (1024-19999)
