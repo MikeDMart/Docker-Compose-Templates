@@ -1,0 +1,14 @@
+# stacks/npm/docker-compose.yml
+version: '3.8'
+services:
+  npm:
+    image: 'jc21/nginx-proxy-manager:latest'
+    container_name: npm
+    restart: unless-stopped
+    ports:
+      - '80:80'    # HTTP
+      - '81:81'    # Admin panel
+      - '443:443'  # HTTPS
+    volumes:
+      - ./data:/data
+      - ./letsencrypt:/etc/letsencrypt
