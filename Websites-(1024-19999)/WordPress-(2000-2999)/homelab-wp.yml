@@ -1,9 +1,5 @@
 version: '3.8'
 
-# ============================================================================
-# WORDPRESS PRODUCTION STACK - HomeLab
-# ============================================================================
-
 networks:
   wordpress-network:
     driver: bridge
@@ -29,16 +25,9 @@ services:
       WORDPRESS_DB_HOST: mysql:3306
       WORDPRESS_DB_NAME: wordpress_homelab
       WORDPRESS_DB_USER: wp_homelab
-      WORDPRESS_DB_PASSWORD: ${DB_PASSWORD:-ChangeMe123!}  # ← VALOR POR DEFECTO
+      WORDPRESS_DB_PASSWORD: ${DB_PASSWORD:-ChangeMe123!}
       WORDPRESS_TABLE_PREFIX: wp_hl_
       WORDPRESS_DEBUG: 0
-      
-      WORDPRESS_CONFIG_EXTRA: |
-        define('WP_HOME', 'http://a8server.unids.com:2000');
-        define('WP_SITEURL', 'http://a8server.unids.com:2000');
-        define('WP_REDIS_HOST', 'redis');
-        define('WP_REDIS_PORT', 6379);
-        define('WP_CACHE', true);
     
     volumes:
       - wordpress_data:/var/www/html
@@ -49,6 +38,8 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+      redis:
+        condition: service_started  # ← Cambiado a started, no healthy
 
   mysql:
     image: mysql:8.0
@@ -56,10 +47,17 @@ services:
     restart: unless-stopped
     
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-ChangeMeRoot456!}  # ← VALOR POR DEFECTO
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-ChangeMeRoot456!}
       MYSQL_DATABASE: wordpress_homelab
       MYSQL_USER: wp_homelab
-      MYSQL_PASSWORD: ${DB_PASSWORD:-ChangeMe123!}  # ← VALOR POR DEFECTO
+      MYSQL_PASSWORD: ${DB_PASSWORD:-ChangeMe123!}
+    
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --max_allowed_packet=256M
+      --innodb_buffer_pool_size=256M
     
     volumes:
       - mysql_data:/var/lib/mysql
@@ -69,16 +67,17 @@ services:
     
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-ChangeMeRoot456!}"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      interval: 10s
+      timeout: 30s
+      retries: 10
+      start_period: 90s  # ← MySQL necesita tiempo para iniciar
 
   redis:
     image: redis:7-alpine
     container_name: homelab-redis-2000
     restart: unless-stopped
     
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --save 60 1000
     
     volumes:
       - redis_data:/data
@@ -98,10 +97,11 @@ services:
       PMA_HOST: mysql
       PMA_PORT: 3306
       PMA_USER: root
-      PMA_PASSWORD: ${DB_ROOT_PASSWORD:-ChangeMeRoot456!}  # ← VALOR POR DEFECTO
+      PMA_PASSWORD: ${DB_ROOT_PASSWORD:-ChangeMeRoot456!}
     
     networks:
       - wordpress-network
     
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
