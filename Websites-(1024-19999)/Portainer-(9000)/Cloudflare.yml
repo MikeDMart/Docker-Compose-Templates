@@ -1,0 +1,102 @@
+version: '3.8'
+
+services:
+  # ============ CLOUDFLARE TUNNEL ============
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    restart: unless-stopped
+    network_mode: "host"  # Importante para acceder a servicios locales
+    volumes:
+      - ./cloudflare/tunnel.yml:/etc/cloudflared/config.yml:ro
+      - ./cloudflare/credentials/${TUNNEL_ID}.json:/etc/cloudflared/creds.json:ro
+      - cloudflared_logs:/var/log
+    environment:
+      - TZ=${TIMEZONE:-UTC}
+      - TUNNEL_METRICS=0.0.0.0:2000
+    command: tunnel --config /etc/cloudflared/config.yml run
+    healthcheck:
+      test: ["CMD", "cloudflared", "tunnel", "info"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    labels:
+      - "traefik.enable=false"
+
+  # ============ PORTAINER ============
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9443:9443"  # Solo localhost + cloudflared
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - portainer_data:/data
+    environment:
+      - TZ=${TIMEZONE:-UTC}
+    networks:
+      - internal_net
+    labels:
+      - "cf.tunnel.enabled=true"
+      - "cf.tunnel.hostname=portainer.${DOMAIN}"
+
+  # ============ WORDPRESS ============
+  wordpress:
+    image: wordpress:latest
+    container_name: wordpress
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:80:80"
+    environment:
+      - WORDPRESS_DB_HOST=db
+      - WORDPRESS_DB_USER=${WP_DB_USER}
+      - WORDPRESS_DB_PASSWORD=${WP_DB_PASS}
+      - WORDPRESS_DB_NAME=${WP_DB_NAME}
+      - TZ=${TIMEZONE:-UTC}
+    volumes:
+      - wp_data:/var/www/html
+    networks:
+      - internal_net
+    depends_on:
+      - db
+    labels:
+      - "cf.tunnel.enabled=true"
+      - "cf.tunnel.hostname=wp.${DOMAIN}"
+
+  # ============ DATABASE WORDPRESS ============
+  db:
+    image: mariadb:latest
+    container_name: wordpress_db
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASS}
+      - MYSQL_DATABASE=${WP_DB_NAME}
+      - MYSQL_USER=${WP_DB_USER}
+      - MYSQL_PASSWORD=${WP_DB_PASS}
+      - TZ=${TIMEZONE:-UTC}
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - internal_net
+    command: '--default-authentication-plugin=mysql_native_password'
+
+networks:
+  internal_net:
+    driver: bridge
+    internal: true  # Solo servicios internos
+
+volumes:
+  portainer_data:
+    driver: local
+  wp_data:
+    driver: local
+  db_data:
+    driver: local
+  cloudflared_logs:
+    driver: local
