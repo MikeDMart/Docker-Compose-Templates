@@ -1,282 +1,333 @@
-// ===============================================
-// APP FINAL - CON ESPERA A CODEMIRROR Y SUPABASE
-// ===============================================
-console.log('✅ app-final.js cargado');
+// app.js - COMPLETO Y FUNCIONAL
 
-(function() {
-    // ===============================================
-    // ESPERAR A QUE SUPABASE CARGUE
-    // ===============================================
-    if (typeof window.supabase === 'undefined') {
-        console.log('⏳ Esperando a Supabase...');
-        setTimeout(arguments.callee, 100);
-        return;
-    }
-    console.log('✅ Supabase encontrado');
+// ═══════════════════════════════════════════════════════════
+// SUPABASE CONFIG
+// ═══════════════════════════════════════════════════════════
 
-    // ===============================================
-    // ESPERAR A QUE CODEMIRROR CARGUE
-    // ===============================================
-    if (typeof CodeMirror === 'undefined') {
-        console.log('⏳ Esperando a CodeMirror...');
-        setTimeout(arguments.callee, 100);
-        return;
-    }
-    console.log('✅ CodeMirror encontrado');
+const SUPABASE_URL = 'https://jimbsityxbidiyqhbutk.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImppbWJzaXR5eGJpZGl5cWhidXRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1ODcwMDQsImV4cCI6MjA4OTE2MzAwNH0.a5CMHp28vqvxh84ZiXM46xdKEELuscYOQaEBLZ3qgUI';
 
-    // ===============================================
-    // CONFIGURACIÓN SUPABASE
-    // ===============================================
-    const SUPABASE_URL = 'https://jimbsityxbidiyqhbutk.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImppbWJzaXR5eGJpZGl5cWhidXRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDIxNDY2MzksImV4cCI6MjA1NzcyMjYzOX0.L6q9x4N30T6jYIw_cPrirw_umuZDBoC';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    console.log('✅ Cliente Supabase creado');
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
 
-    // ===============================================
-    // VARIABLES GLOBALES
-    // ===============================================
-    let editor;
-    let currentUser = null;
-    let autoSaveInterval;
+let editor;
+let currentUser = null;
+let currentYamlId = null;
+let autoSaveTimer = null;
 
-    // ===============================================
-    // FUNCIONES UI
-    // ===============================================
-    function showAuthenticatedUI() {
-        const authBtn = document.querySelector('#auth-section button');
-        const userInfo = document.getElementById('user-info');
-        const userEmail = document.getElementById('user-email');
-        const mainContent = document.getElementById('main-content');
-        
-        if (authBtn) authBtn.style.display = 'none';
-        if (userInfo) {
-            userInfo.style.display = 'flex';
-            if (userEmail) userEmail.textContent = currentUser?.email || '';
-        }
-        if (mainContent) mainContent.style.display = 'grid';
-    }
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
 
-    function showUnauthenticatedUI() {
-        const authBtn = document.querySelector('#auth-section button');
-        const userInfo = document.getElementById('user-info');
-        const mainContent = document.getElementById('main-content');
-        
-        if (authBtn) authBtn.style.display = 'block';
-        if (userInfo) userInfo.style.display = 'none';
-        if (mainContent) mainContent.style.display = 'none';
-    }
+document.addEventListener('DOMContentLoaded', async () => {
+  initEditor();
+  await checkSession();
+  setupEventListeners();
+});
 
-    // ===============================================
-    // AUTENTICACIÓN
-    // ===============================================
-    async function checkAuth() {
-        try {
-            const { data: { user }, error } = await sbClient.auth.getUser();
-            
-            if (error) {
-                console.log('⚠️ Error de autenticación:', error);
-                showUnauthenticatedUI();
-                return;
-            }
+// ═══════════════════════════════════════════════════════════
+// EDITOR
+// ═══════════════════════════════════════════════════════════
 
-            if (user) {
-                currentUser = user;
-                showAuthenticatedUI();
-                await loadUserYAMLs();
-            } else {
-                showUnauthenticatedUI();
-            }
-        } catch (e) {
-            console.error('❌ Error en checkAuth:', e);
-            showUnauthenticatedUI();
-        }
-    }
+function initEditor() {
+  const textarea = document.getElementById('yaml-editor');
+  
+  editor = CodeMirror.fromTextArea(textarea, {
+    mode: 'yaml',
+    theme: 'dracula',
+    lineNumbers: true,
+    autoCloseBrackets: true,
+    matchBrackets: true,
+    indentUnit: 2,
+    tabSize: 2,
+    lineWrapping: true
+  });
 
-    async function login() {
-        await sbClient.auth.signInWithOAuth({
-            provider: 'google',
-            options: {
-                redirectTo: `${window.location.origin}${window.location.pathname}`
-            }
-        });
-    }
-
-    async function logout() {
-        await sbClient.auth.signOut();
-        currentUser = null;
-        clearInterval(autoSaveInterval);
-        showUnauthenticatedUI();
-    }
-
-    // ===============================================
-    // OPERACIONES YAML
-    // ===============================================
-    async function saveYAML(silent = false) {
-        if (!currentUser) return;
-
-        const content = editor.getValue();
-        const fileName = `docker-compose-${Date.now()}.yml`;
-
-        try {
-            await sbClient
-                .from('user_yamls')
-                .insert([
-                    { 
-                        user_id: currentUser.id,
-                        name: fileName,
-                        category: 'auto',
-                        content: content
-                    }
-                ]);
-
-            if (!silent) {
-                updateStatus('✅ Guardado', 'success');
-                await loadUserYAMLs();
-            }
-        } catch (e) {
-            console.error('Error al guardar:', e);
-            updateStatus('❌ Error al guardar', 'error');
-        }
-    }
-
-    async function loadUserYAMLs() {
-        if (!currentUser) return;
-
-        try {
-            const { data } = await sbClient
-                .from('user_yamls')
-                .select('*')
-                .eq('user_id', currentUser.id)
-                .order('created_at', { ascending: false });
-
-            const list = document.getElementById('my-yamls-list');
-            if (!list) return;
-            
-            list.innerHTML = '';
-
-            data?.forEach(yaml => {
-                const li = document.createElement('li');
-                li.innerHTML = `
-                    <span>${yaml.name}</span>
-                    <button onclick="window.loadYAML('${yaml.id}')">Cargar</button>
-                `;
-                list.appendChild(li);
-            });
-        } catch (e) {
-            console.error('Error cargando YAMLs:', e);
-        }
-    }
-
-    async function loadYAML(id) {
-        try {
-            const { data } = await sbClient
-                .from('user_yamls')
-                .select('*')
-                .eq('id', id)
-                .single();
-
-            if (data && editor) {
-                editor.setValue(data.content);
-                updateStatus('✅ Cargado', 'success');
-            }
-        } catch (e) {
-            console.error('Error cargando YAML:', e);
-        }
-    }
-
-    function downloadYAML() {
-        if (!editor) return;
-        const content = editor.getValue();
-        const blob = new Blob([content], { type: 'text/yaml' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'docker-compose.yml';
-        a.click();
-        URL.revokeObjectURL(url);
-        updateStatus('⬇️ Descargado', 'success');
-    }
-
-    function copyYAML() {
-        if (!editor) return;
-        navigator.clipboard.writeText(editor.getValue());
-        updateStatus('📋 Copiado', 'success');
-    }
-
-    function updateStatus(message, type) {
-        const status = document.getElementById('save-status');
-        if (!status) return;
-        
-        status.textContent = message;
-        status.className = `status ${type}`;
-        setTimeout(() => {
-            status.textContent = '';
-            status.className = 'status';
-        }, 3000);
-    }
-
-    // ===============================================
-    // CODEMIRROR
-    // ===============================================
-    function initializeCodeMirror() {
-        const textarea = document.getElementById('yaml-editor');
-        if (!textarea) return;
-        
-        editor = CodeMirror.fromTextArea(textarea, {
-            mode: 'yaml',
-            theme: 'dracula',
-            lineNumbers: true,
-            lineWrapping: true,
-            tabSize: 2
-        });
-        
-        editor.setValue(`version: '3.8'
+  // Placeholder YAML
+  editor.setValue(`version: '3.8'
 
 services:
-  app:
+  web:
     image: nginx:latest
     ports:
       - "80:80"
     volumes:
       - ./html:/usr/share/nginx/html
     restart: unless-stopped
+
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_PASSWORD: changeme
+      POSTGRES_DB: myapp
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  db_data:
 `);
 
-        autoSaveInterval = setInterval(async () => {
-            if (currentUser) {
-                await saveYAML(true);
-            }
-        }, 30000);
+  // Auto-save cada 3 segundos
+  editor.on('change', () => {
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(() => {
+      if (currentUser && currentYamlId) {
+        saveYaml();
+      }
+    }, 3000);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════════════
+
+async function checkSession() {
+  const { data: { session } } = await sb.auth.getSession();
+  
+  if (session) {
+    currentUser = session.user;
+    showApp();
+    await loadUserYamls();
+  } else {
+    showLogin();
+  }
+
+  // Listen to auth changes
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_IN') {
+      currentUser = session.user;
+      showApp();
+      loadUserYamls();
+    } else if (event === 'SIGNED_OUT') {
+      currentUser = null;
+      currentYamlId = null;
+      showLogin();
+    }
+  });
+}
+
+async function login() {
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: window.location.origin
+    }
+  });
+
+  if (error) {
+    console.error('Login error:', error);
+    alert('Error al iniciar sesión: ' + error.message);
+  }
+}
+
+async function logout() {
+  const { error } = await sb.auth.signOut();
+  if (error) {
+    console.error('Logout error:', error);
+  }
+}
+
+function showLogin() {
+  document.getElementById('login-btn').style.display = 'block';
+  document.getElementById('user-info').style.display = 'none';
+  document.getElementById('main-content').style.display = 'none';
+}
+
+function showApp() {
+  document.getElementById('login-btn').style.display = 'none';
+  document.getElementById('user-info').style.display = 'flex';
+  document.getElementById('user-email').textContent = currentUser.email;
+  document.getElementById('main-content').style.display = 'flex';
+}
+
+// ═══════════════════════════════════════════════════════════
+// YAML CRUD
+// ═══════════════════════════════════════════════════════════
+
+async function saveYaml() {
+  if (!currentUser) return;
+
+  const content = editor.getValue();
+  const status = document.getElementById('save-status');
+
+  try {
+    if (currentYamlId) {
+      // Update existing
+      const { error } = await sb
+        .from('yamls')
+        .update({ 
+          content,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', currentYamlId);
+
+      if (error) throw error;
+      
+      status.textContent = '✅ Guardado ' + new Date().toLocaleTimeString();
+      status.style.color = '#4ade80';
+    } else {
+      // Create new
+      const { data, error } = await sb
+        .from('yamls')
+        .insert({
+          user_id: currentUser.id,
+          name: 'Nuevo YAML ' + new Date().toLocaleDateString(),
+          content
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      currentYamlId = data.id;
+      status.textContent = '✅ Creado ' + new Date().toLocaleTimeString();
+      status.style.color = '#4ade80';
+      
+      await loadUserYamls();
     }
 
-    // ===============================================
-    // EVENT LISTENERS
-    // ===============================================
-    function setupEventListeners() {
-        document.getElementById('login-btn')?.addEventListener('click', login);
-        document.getElementById('logout-btn')?.addEventListener('click', logout);
-        document.getElementById('save-btn')?.addEventListener('click', () => saveYAML(false));
-        document.getElementById('download-btn')?.addEventListener('click', downloadYAML);
-        document.getElementById('copy-btn')?.addEventListener('click', copyYAML);
+    setTimeout(() => {
+      status.textContent = '';
+    }, 3000);
 
-        sbClient.auth.onAuthStateChange((event) => {
-            console.log('🔄 Auth event:', event);
-            if (event === 'SIGNED_IN') {
-                checkAuth();
-            } else if (event === 'SIGNED_OUT') {
-                showUnauthenticatedUI();
-            }
-        });
-    }
+  } catch (error) {
+    console.error('Save error:', error);
+    status.textContent = '❌ Error: ' + error.message;
+    status.style.color = '#f87171';
+  }
+}
 
-    // ===============================================
-    // INICIALIZACIÓN
-    // ===============================================
-    initializeCodeMirror();
-    setupEventListeners();
-    checkAuth();
+async function loadUserYamls() {
+  if (!currentUser) return;
 
-    // Exponer función para cargar YAMLs
-    window.loadYAML = loadYAML;
-})();
+  const { data, error } = await sb
+    .from('yamls')
+    .select('*')
+    .eq('user_id', currentUser.id)
+    .order('updated_at', { ascending: false });
+
+  if (error) {
+    console.error('Load error:', error);
+    return;
+  }
+
+  const list = document.getElementById('my-yamls-list');
+  list.innerHTML = '';
+
+  if (data.length === 0) {
+    list.innerHTML = '<li class="empty">No tienes YAMLs guardados</li>';
+    return;
+  }
+
+  data.forEach(yaml => {
+    const li = document.createElement('li');
+    li.className = yaml.id === currentYamlId ? 'active' : '';
+    
+    li.innerHTML = `
+      <div class="yaml-item">
+        <div class="yaml-info">
+          <strong>${yaml.name}</strong>
+          <small>${new Date(yaml.updated_at).toLocaleString()}</small>
+        </div>
+        <div class="yaml-actions">
+          <button class="icon-btn" onclick="loadYaml('${yaml.id}')">📂</button>
+          <button class="icon-btn" onclick="deleteYaml('${yaml.id}')">🗑️</button>
+        </div>
+      </div>
+    `;
+    
+    list.appendChild(li);
+  });
+}
+
+async function loadYaml(id) {
+  const { data, error } = await sb
+    .from('yamls')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error) {
+    console.error('Load error:', error);
+    return;
+  }
+
+  currentYamlId = id;
+  editor.setValue(data.content);
+  
+  // Update active state
+  document.querySelectorAll('#my-yamls-list li').forEach(li => {
+    li.classList.remove('active');
+  });
+  event.target.closest('li').classList.add('active');
+}
+
+async function deleteYaml(id) {
+  if (!confirm('¿Seguro que querés eliminar este YAML?')) return;
+
+  const { error } = await sb
+    .from('yamls')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error('Delete error:', error);
+    alert('Error al eliminar: ' + error.message);
+    return;
+  }
+
+  if (currentYamlId === id) {
+    currentYamlId = null;
+    editor.setValue('');
+  }
+
+  await loadUserYamls();
+}
+
+// ═══════════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════════
+
+function downloadYaml() {
+  const content = editor.getValue();
+  const blob = new Blob([content], { type: 'text/yaml' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'docker-compose.yml';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function copyYaml() {
+  const content = editor.getValue();
+  navigator.clipboard.writeText(content).then(() => {
+    const status = document.getElementById('save-status');
+    status.textContent = '📋 Copiado al portapapeles';
+    status.style.color = '#60a5fa';
+    setTimeout(() => {
+      status.textContent = '';
+    }, 2000);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// EVENT LISTENERS
+// ═══════════════════════════════════════════════════════════
+
+function setupEventListeners() {
+  document.getElementById('login-btn').addEventListener('click', login);
+  document.getElementById('logout-btn').addEventListener('click', logout);
+  document.getElementById('save-btn').addEventListener('click', saveYaml);
+  document.getElementById('download-btn').addEventListener('click', downloadYaml);
+  document.getElementById('copy-btn').addEventListener('click', copyYaml);
+}
+
+// Make functions global for onclick handlers
+window.loadYaml = loadYaml;
+window.deleteYaml = deleteYaml;

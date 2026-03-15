@@ -1,6 +1,21 @@
 {
     "name": "The Docker Library",
     "short_name": "DockerLib",
+    "description": "Generador y editor de YAML para Docker",
     "start_url": "/TheDockerLibrary/",
-    "display": "standalone"
+    "display": "standalone",
+    "background_color": "#f5f5f5",
+    "theme_color": "#0d9488",
+    "icons": [
+        {
+            "src": "icons/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
 }
