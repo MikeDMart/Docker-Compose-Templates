@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Docker Library</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <!-- CodeMirror -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/dracula.min.css">
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1>🐳 The Docker Library</h1>
+            <div id="auth-section">
+                <button id="login-btn" class="btn">Iniciar sesión con Google</button>
+                <div id="user-info" style="display: none;">
+                    <span id="user-email"></span>
+                    <button id="logout-btn" class="btn secondary">Cerrar sesión</button>
+                </div>
+            </div>
+        </header>
+
+        <main id="main-content" style="display: none;">
+            <div class="editor-container">
+                <h2>Editor YAML</h2>
+                <textarea id="yaml-editor"></textarea>
+                <div class="actions">
+                    <button id="save-btn" class="btn">💾 Guardar ahora</button>
+                    <button id="download-btn" class="btn secondary">⬇️ Descargar</button>
+                    <button id="copy-btn" class="btn secondary">📋 Copiar</button>
+                </div>
+                <p id="save-status" class="status"></p>
+            </div>
+
+            <div class="sidebar">
+                <h3>Mis YAMLs</h3>
+                <ul id="my-yamls-list"></ul>
+            </div>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
