@@ -3,8 +3,8 @@
 // ═══════════════════════════════════════════════════════════
 
 // SUPABASE CONFIG
-const SUPABASE_URL = 'https://jimbsityxbidiyqhbutk.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImppbWJzaXR5eGJpZGl5cWhidXRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1ODcwMDQsImV4cCI6MjA4OTE2MzAwNH0.a5CMHp28vqvxh84ZiXM46xdKEELuscYOQaEBLZ3qgUI';
+const SUPABASE_URL = 'https://jdjyvftusbnpyrdfmfvp.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impkanl2ZnR1c2JucHlyZGZtZnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2MDM4ODksImV4cCI6MjA4OTE3OTg4OX0.pOUwRAOqANDRwaoAXg7VAMEGipzLa7coPuObihfcC0I';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // STATE
