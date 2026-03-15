@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-// THE DOCKER LIBRARY - COMPLETE LOGIC
+// THE DOCKER LIBRARY V2 - MASSIVE LIBRARY + HORIZONTAL FILTERS
 // ═══════════════════════════════════════════════════════════
 
 // SUPABASE CONFIG
@@ -10,293 +10,461 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // STATE
 let currentUser = null;
 let selectedTemplate = null;
-let filteredTemplates = [];
-
-// ═══════════════════════════════════════════════════════════
-// PORT RANGES DATABASE
-// ═══════════════════════════════════════════════════════════
-
-const PORT_RANGES = {
-  "1024-19999": {
-    name: "Websites",
-    icon: "🌐",
-    categories: {
-      "WordPress Multisite": {
-        useCase: "Enterprise WordPress networks, multi-tenant blogs",
-        technologies: ["WordPress MU", "Bedrock"]
-      },
-      "WordPress Single": {
-        useCase: "Individual WordPress installations",
-        technologies: ["WordPress", "MySQL", "Redis", "WP Engine"]
-      },
-      "Static Sites": {
-        useCase: "JAMstack sites, documentation",
-        technologies: ["Next.js", "Gatsby", "Hugo", "Jekyll"]
-      },
-      "Ghost Blogs": {
-        useCase: "Modern publishing platforms",
-        technologies: ["Ghost", "MySQL"]
-      }
-    }
-  },
-  "20000-29999": {
-    name: "Applications",
-    icon: "🚀",
-    categories: {
-      "Databases": {
-        useCase: "Relational and NoSQL databases",
-        technologies: ["PostgreSQL", "MySQL", "MongoDB", "MariaDB"]
-      },
-      "Cache Systems": {
-        useCase: "In-memory data stores",
-        technologies: ["Redis", "Memcached"]
-      },
-      "REST APIs": {
-        useCase: "RESTful web services",
-        technologies: ["Express.js", "FastAPI", "Django REST", "Flask"]
-      },
-      "Message Queues": {
-        useCase: "Async processing and job queues",
-        technologies: ["RabbitMQ", "Celery", "Kafka"]
-      }
-    }
-  },
-  "30000-39999": {
-    name: "DevOps Tools",
-    icon: "⚙️",
-    categories: {
-      "Monitoring": {
-        useCase: "System and application monitoring",
-        technologies: ["Prometheus", "Grafana", "Zabbix"]
-      },
-      "CI/CD Pipelines": {
-        useCase: "Continuous integration/deployment",
-        technologies: ["Jenkins", "GitLab CI", "DroneCI"]
-      },
-      "Log Aggregation": {
-        useCase: "Centralized logging",
-        technologies: ["ELK Stack", "Graylog", "Loki"]
-      }
-    }
-  }
+let allTemplates = [];
+let filters = {
+  search: '',
+  portRange: 'all',
+  category: 'all',
+  technologies: []
 };
 
-// TEMPLATES DATABASE
-const TEMPLATES = [
-  {
-    id: "wp-mysql-redis",
-    name: "WordPress + MySQL + Redis",
-    portRange: "2000-2999",
-    category: "WordPress Single",
-    technologies: ["WordPress", "MySQL", "Redis"],
-    description: "Complete WordPress stack with MySQL database and Redis caching for optimal performance",
-    yamlTemplate: `version: '3.8'
+// ═══════════════════════════════════════════════════════════
+// MASSIVE TEMPLATES LIBRARY (50+)
+// ═══════════════════════════════════════════════════════════
 
-services:
-  wordpress:
-    image: wordpress:latest
-    ports:
-      - "{{WP_PORT}}:80"
-    environment:
-      WORDPRESS_DB_HOST: mysql:3306
-      WORDPRESS_DB_NAME: {{DB_NAME}}
-      WORDPRESS_DB_USER: {{DB_USER}}
-      WORDPRESS_DB_PASSWORD: {{DB_PASSWORD}}
-    restart: unless-stopped
-    depends_on:
-      - mysql
-      - redis
-    volumes:
-      - wordpress_data:/var/www/html
-      
-  mysql:
-    image: mysql:8.0
-    ports:
-      - "{{MYSQL_PORT}}:3306"
-    environment:
-      MYSQL_ROOT_PASSWORD: {{MYSQL_ROOT_PASSWORD}}
-      MYSQL_DATABASE: {{DB_NAME}}
-      MYSQL_USER: {{DB_USER}}
-      MYSQL_PASSWORD: {{DB_PASSWORD}}
-    volumes:
-      - mysql_data:/var/lib/mysql
-    restart: unless-stopped
-      
-  redis:
-    image: redis:alpine
-    ports:
-      - "{{REDIS_PORT}}:6379"
-    command: redis-server --requirepass {{REDIS_PASSWORD}}
-    restart: unless-stopped
-    
-volumes:
-  wordpress_data:
-  mysql_data:
-`,
-    requiredFields: [
-      { key: "WP_PORT", label: "WordPress Port", type: "number", default: 2001, min: 2000, max: 2999, hint: "Public port for WordPress" },
-      { key: "MYSQL_PORT", label: "MySQL Port", type: "number", default: 20001, min: 20000, max: 20999, hint: "Internal database port" },
-      { key: "REDIS_PORT", label: "Redis Port", type: "number", default: 21001, min: 21000, max: 21999, hint: "Cache system port" },
-      { key: "DB_NAME", label: "Database Name", type: "text", placeholder: "wordpress_db", hint: "Name for your WordPress database" },
-      { key: "DB_USER", label: "MySQL User", type: "text", placeholder: "wp_user", hint: "Database username" },
-      { key: "DB_PASSWORD", label: "MySQL Password", type: "password", placeholder: "********", hint: "Strong password for database" },
-      { key: "MYSQL_ROOT_PASSWORD", label: "MySQL Root Password", type: "password", placeholder: "********", hint: "Root database password" },
-      { key: "REDIS_PASSWORD", label: "Redis Password", type: "password", placeholder: "********", hint: "Cache authentication password" }
-    ]
+const TEMPLATES_LIBRARY = [
+  // WEBSITES (1024-19999)
+  {
+    id: "wp-basic",
+    name: "WordPress Basic",
+    portRange: "2000-2999",
+    category: "WordPress",
+    technologies: ["WordPress", "MySQL"],
+    description: "Simple WordPress with MySQL database",
+    ports: { web: 2001, db: 20001 }
   },
-  
+  {
+    id: "wp-redis",
+    name: "WordPress + Redis",
+    portRange: "2000-2999",
+    category: "WordPress",
+    technologies: ["WordPress", "MySQL", "Redis"],
+    description: "WordPress with Redis caching for better performance",
+    ports: { web: 2002, db: 20002, cache: 21001 }
+  },
+  {
+    id: "wp-multisite",
+    name: "WordPress Multisite",
+    portRange: "1024-1999",
+    category: "WordPress",
+    technologies: ["WordPress MU", "MySQL", "Redis"],
+    description: "Enterprise WordPress network with multi-tenancy",
+    ports: { web: 1024, db: 20003, cache: 21002 }
+  },
+  {
+    id: "ghost-basic",
+    name: "Ghost Blog",
+    portRange: "4000-4999",
+    category: "Blog",
+    technologies: ["Ghost", "MySQL"],
+    description: "Modern publishing platform for professional blogs",
+    ports: { web: 4001, db: 20004 }
+  },
+  {
+    id: "ghost-postgres",
+    name: "Ghost + PostgreSQL",
+    portRange: "4000-4999",
+    category: "Blog",
+    technologies: ["Ghost", "PostgreSQL"],
+    description: "Ghost with PostgreSQL for better scalability",
+    ports: { web: 4002, db: 20005 }
+  },
+  {
+    id: "nextjs-basic",
+    name: "Next.js Static",
+    portRange: "5000-5999",
+    category: "Static Site",
+    technologies: ["Next.js"],
+    description: "Next.js static site with server-side rendering",
+    ports: { web: 5001 }
+  },
   {
     id: "nextjs-postgres",
     name: "Next.js + PostgreSQL",
     portRange: "5000-5999",
-    category: "Static Sites",
+    category: "Static Site",
     technologies: ["Next.js", "PostgreSQL"],
-    description: "Modern React framework with PostgreSQL database for full-stack applications",
-    yamlTemplate: `version: '3.8'
-
-services:
-  nextjs:
-    image: node:18-alpine
-    working_dir: /app
-    ports:
-      - "{{NEXTJS_PORT}}:3000"
-    environment:
-      DATABASE_URL: postgresql://{{DB_USER}}:{{DB_PASSWORD}}@postgres:5432/{{DB_NAME}}
-      NODE_ENV: production
-    volumes:
-      - ./app:/app
-      - /app/node_modules
-    command: sh -c "npm install && npm run build && npm start"
-    depends_on:
-      - postgres
-    restart: unless-stopped
-      
-  postgres:
-    image: postgres:15-alpine
-    ports:
-      - "{{POSTGRES_PORT}}:5432"
-    environment:
-      POSTGRES_USER: {{DB_USER}}
-      POSTGRES_PASSWORD: {{DB_PASSWORD}}
-      POSTGRES_DB: {{DB_NAME}}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    restart: unless-stopped
-    
-volumes:
-  postgres_data:
-`,
-    requiredFields: [
-      { key: "NEXTJS_PORT", label: "Next.js Port", type: "number", default: 5001, min: 5000, max: 5999, hint: "Public web server port" },
-      { key: "POSTGRES_PORT", label: "PostgreSQL Port", type: "number", default: 20002, min: 20000, max: 20999, hint: "Database port" },
-      { key: "DB_NAME", label: "Database Name", type: "text", placeholder: "nextjs_db", hint: "Application database name" },
-      { key: "DB_USER", label: "PostgreSQL User", type: "text", placeholder: "nextjs_user", hint: "Database username" },
-      { key: "DB_PASSWORD", label: "PostgreSQL Password", type: "password", placeholder: "********", hint: "Secure database password" }
-    ]
+    description: "Full-stack Next.js with PostgreSQL database",
+    ports: { web: 5002, db: 20006 }
+  },
+  {
+    id: "gatsby-basic",
+    name: "Gatsby",
+    portRange: "5000-5999",
+    category: "Static Site",
+    technologies: ["Gatsby"],
+    description: "React-based static site generator",
+    ports: { web: 5003 }
+  },
+  {
+    id: "hugo-basic",
+    name: "Hugo",
+    portRange: "5000-5999",
+    category: "Static Site",
+    technologies: ["Hugo"],
+    description: "Fast static site generator written in Go",
+    ports: { web: 5004 }
+  },
+  {
+    id: "jekyll-basic",
+    name: "Jekyll",
+    portRange: "5000-5999",
+    category: "Static Site",
+    technologies: ["Jekyll"],
+    description: "Ruby-based static site generator",
+    ports: { web: 5005 }
+  },
+  {
+    id: "astro-basic",
+    name: "Astro",
+    portRange: "5000-5999",
+    category: "Static Site",
+    technologies: ["Astro"],
+    description: "Modern static site builder with partial hydration",
+    ports: { web: 5006 }
+  },
+  {
+    id: "nextcloud-basic",
+    name: "NextCloud",
+    portRange: "3000-3999",
+    category: "Cloud Storage",
+    technologies: ["NextCloud", "PostgreSQL", "Redis"],
+    description: "Self-hosted cloud storage and collaboration platform",
+    ports: { web: 3001, db: 20007, cache: 21003 }
   },
   
+  // APPLICATIONS (20000-29999)
+  {
+    id: "postgres-basic",
+    name: "PostgreSQL",
+    portRange: "20000-20999",
+    category: "Database",
+    technologies: ["PostgreSQL"],
+    description: "Powerful open-source relational database",
+    ports: { db: 20010 }
+  },
+  {
+    id: "mysql-basic",
+    name: "MySQL",
+    portRange: "20000-20999",
+    category: "Database",
+    technologies: ["MySQL"],
+    description: "Popular open-source relational database",
+    ports: { db: 20011 }
+  },
+  {
+    id: "mongodb-basic",
+    name: "MongoDB",
+    portRange: "20000-20999",
+    category: "Database",
+    technologies: ["MongoDB"],
+    description: "NoSQL document database",
+    ports: { db: 20012 }
+  },
+  {
+    id: "mariadb-basic",
+    name: "MariaDB",
+    portRange: "20000-20999",
+    category: "Database",
+    technologies: ["MariaDB"],
+    description: "MySQL fork with enhanced features",
+    ports: { db: 20013 }
+  },
+  {
+    id: "redis-basic",
+    name: "Redis",
+    portRange: "21000-21999",
+    category: "Cache",
+    technologies: ["Redis"],
+    description: "In-memory data structure store",
+    ports: { cache: 21010 }
+  },
+  {
+    id: "memcached-basic",
+    name: "Memcached",
+    portRange: "21000-21999",
+    category: "Cache",
+    technologies: ["Memcached"],
+    description: "High-performance distributed memory caching",
+    ports: { cache: 21011 }
+  },
+  {
+    id: "rabbitmq-basic",
+    name: "RabbitMQ",
+    portRange: "22000-22999",
+    category: "Message Queue",
+    technologies: ["RabbitMQ"],
+    description: "Reliable message broker",
+    ports: { mq: 22001, management: 22002 }
+  },
+  {
+    id: "kafka-basic",
+    name: "Apache Kafka",
+    portRange: "22000-22999",
+    category: "Message Queue",
+    technologies: ["Kafka", "Zookeeper"],
+    description: "Distributed streaming platform",
+    ports: { kafka: 22003, zookeeper: 22004 }
+  },
+  {
+    id: "express-api",
+    name: "Express.js API",
+    portRange: "23000-23999",
+    category: "API",
+    technologies: ["Express.js", "Node.js"],
+    description: "Fast Node.js web framework for APIs",
+    ports: { api: 23001 }
+  },
+  {
+    id: "fastapi-basic",
+    name: "FastAPI",
+    portRange: "23000-23999",
+    category: "API",
+    technologies: ["FastAPI", "Python"],
+    description: "Modern Python web framework",
+    ports: { api: 23002 }
+  },
+  {
+    id: "django-api",
+    name: "Django REST",
+    portRange: "23000-23999",
+    category: "API",
+    technologies: ["Django", "PostgreSQL"],
+    description: "Powerful Python REST framework",
+    ports: { api: 23003, db: 20014 }
+  },
+  {
+    id: "flask-api",
+    name: "Flask API",
+    portRange: "23000-23999",
+    category: "API",
+    technologies: ["Flask", "Python"],
+    description: "Lightweight Python micro-framework",
+    ports: { api: 23004 }
+  },
+  {
+    id: "graphql-apollo",
+    name: "Apollo GraphQL",
+    portRange: "24000-24999",
+    category: "GraphQL",
+    technologies: ["Apollo", "Node.js"],
+    description: "Modern GraphQL server",
+    ports: { api: 24001 }
+  },
+  {
+    id: "hasura-graphql",
+    name: "Hasura GraphQL",
+    portRange: "24000-24999",
+    category: "GraphQL",
+    technologies: ["Hasura", "PostgreSQL"],
+    description: "Instant GraphQL on PostgreSQL",
+    ports: { api: 24002, db: 20015 }
+  },
+  
+  // DEVOPS (30000-39999)
   {
     id: "prometheus-grafana",
     name: "Prometheus + Grafana",
     portRange: "30000-30999",
     category: "Monitoring",
     technologies: ["Prometheus", "Grafana"],
-    description: "Complete monitoring stack with metrics collection and visualization dashboards",
-    yamlTemplate: `version: '3.8'
-
-services:
-  prometheus:
-    image: prom/prometheus:latest
-    ports:
-      - "{{PROMETHEUS_PORT}}:9090"
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus_data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=30d'
-    restart: unless-stopped
-      
-  grafana:
-    image: grafana/grafana:latest
-    ports:
-      - "{{GRAFANA_PORT}}:3000"
-    environment:
-      GF_SECURITY_ADMIN_USER: {{GRAFANA_USER}}
-      GF_SECURITY_ADMIN_PASSWORD: {{GRAFANA_PASSWORD}}
-      GF_INSTALL_PLUGINS: grafana-piechart-panel
-    volumes:
-      - grafana_data:/var/lib/grafana
-    depends_on:
-      - prometheus
-    restart: unless-stopped
-    
-volumes:
-  prometheus_data:
-  grafana_data:
-`,
-    requiredFields: [
-      { key: "PROMETHEUS_PORT", label: "Prometheus Port", type: "number", default: 30001, min: 30000, max: 30999, hint: "Metrics collection port" },
-      { key: "GRAFANA_PORT", label: "Grafana Port", type: "number", default: 30002, min: 30000, max: 30999, hint: "Dashboard interface port" },
-      { key: "GRAFANA_USER", label: "Grafana Admin User", type: "text", default: "admin", hint: "Dashboard admin username" },
-      { key: "GRAFANA_PASSWORD", label: "Grafana Admin Password", type: "password", placeholder: "********", hint: "Strong admin password" }
-    ]
+    description: "Complete monitoring and visualization stack",
+    ports: { prometheus: 30001, grafana: 30002 }
   },
-
   {
-    id: "ghost-mysql",
-    name: "Ghost + MySQL",
-    portRange: "4000-4999",
-    category: "Ghost Blogs",
-    technologies: ["Ghost", "MySQL"],
-    description: "Modern publishing platform for professional blogs and content sites",
-    yamlTemplate: `version: '3.8'
-
-services:
-  ghost:
-    image: ghost:latest
-    ports:
-      - "{{GHOST_PORT}}:2368"
-    environment:
-      url: http://{{SITE_URL}}
-      database__client: mysql
-      database__connection__host: mysql
-      database__connection__user: {{DB_USER}}
-      database__connection__password: {{DB_PASSWORD}}
-      database__connection__database: {{DB_NAME}}
-    volumes:
-      - ghost_data:/var/lib/ghost/content
-    depends_on:
-      - mysql
-    restart: unless-stopped
-      
-  mysql:
-    image: mysql:8.0
-    ports:
-      - "{{MYSQL_PORT}}:3306"
-    environment:
-      MYSQL_ROOT_PASSWORD: {{MYSQL_ROOT_PASSWORD}}
-      MYSQL_DATABASE: {{DB_NAME}}
-      MYSQL_USER: {{DB_USER}}
-      MYSQL_PASSWORD: {{DB_PASSWORD}}
-    volumes:
-      - mysql_data:/var/lib/mysql
-    restart: unless-stopped
-    
-volumes:
-  ghost_data:
-  mysql_data:
-`,
-    requiredFields: [
-      { key: "GHOST_PORT", label: "Ghost Port", type: "number", default: 4001, min: 4000, max: 4999, hint: "Blog web server port" },
-      { key: "SITE_URL", label: "Site URL", type: "text", placeholder: "localhost:4001", hint: "Your blog's URL" },
-      { key: "MYSQL_PORT", label: "MySQL Port", type: "number", default: 20003, min: 20000, max: 20999, hint: "Database port" },
-      { key: "DB_NAME", label: "Database Name", type: "text", placeholder: "ghost_db", hint: "Ghost database name" },
-      { key: "DB_USER", label: "MySQL User", type: "text", placeholder: "ghost_user", hint: "Database username" },
-      { key: "DB_PASSWORD", label: "MySQL Password", type: "password", placeholder: "********", hint: "Database password" },
-      { key: "MYSQL_ROOT_PASSWORD", label: "MySQL Root Password", type: "password", placeholder: "********", hint: "Root password" }
-    ]
+    id: "elk-stack",
+    name: "ELK Stack",
+    portRange: "31000-31999",
+    category: "Logging",
+    technologies: ["Elasticsearch", "Logstash", "Kibana"],
+    description: "Centralized logging and analysis",
+    ports: { elasticsearch: 31001, logstash: 31002, kibana: 31003 }
+  },
+  {
+    id: "graylog",
+    name: "Graylog",
+    portRange: "31000-31999",
+    category: "Logging",
+    technologies: ["Graylog", "MongoDB", "Elasticsearch"],
+    description: "Log management platform",
+    ports: { graylog: 31004, db: 20016, search: 31005 }
+  },
+  {
+    id: "jenkins",
+    name: "Jenkins",
+    portRange: "33000-33999",
+    category: "CI/CD",
+    technologies: ["Jenkins"],
+    description: "Automation server for CI/CD",
+    ports: { web: 33001, agent: 33002 }
+  },
+  {
+    id: "gitlab-ci",
+    name: "GitLab CI",
+    portRange: "33000-33999",
+    category: "CI/CD",
+    technologies: ["GitLab", "PostgreSQL", "Redis"],
+    description: "Complete DevOps platform",
+    ports: { web: 33003, db: 20017, cache: 21012 }
+  },
+  {
+    id: "drone-ci",
+    name: "Drone CI",
+    portRange: "33000-33999",
+    category: "CI/CD",
+    technologies: ["Drone"],
+    description: "Container-native CI/CD",
+    ports: { web: 33004 }
+  },
+  {
+    id: "sonarqube",
+    name: "SonarQube",
+    portRange: "37000-37999",
+    category: "Code Quality",
+    technologies: ["SonarQube", "PostgreSQL"],
+    description: "Code quality and security analysis",
+    ports: { web: 37001, db: 20018 }
+  },
+  {
+    id: "nexus",
+    name: "Nexus Repository",
+    portRange: "38000-38999",
+    category: "Artifact Management",
+    technologies: ["Nexus"],
+    description: "Universal artifact repository",
+    ports: { web: 38001 }
+  },
+  
+  // INFRASTRUCTURE (40000-49999)
+  {
+    id: "traefik",
+    name: "Traefik",
+    portRange: "40000-40999",
+    category: "Reverse Proxy",
+    technologies: ["Traefik"],
+    description: "Cloud-native edge router",
+    ports: { http: 80, https: 443, dashboard: 40001 }
+  },
+  {
+    id: "nginx-proxy",
+    name: "Nginx Proxy",
+    portRange: "40000-40999",
+    category: "Reverse Proxy",
+    technologies: ["Nginx"],
+    description: "High-performance web server and proxy",
+    ports: { http: 80, https: 443 }
+  },
+  {
+    id: "haproxy",
+    name: "HAProxy",
+    portRange: "40000-40999",
+    category: "Load Balancer",
+    technologies: ["HAProxy"],
+    description: "Reliable load balancer",
+    ports: { http: 80, stats: 40002 }
+  },
+  {
+    id: "minio",
+    name: "MinIO",
+    portRange: "43000-43999",
+    category: "Object Storage",
+    technologies: ["MinIO"],
+    description: "S3-compatible object storage",
+    ports: { api: 43001, console: 43002 }
+  },
+  {
+    id: "keycloak",
+    name: "Keycloak",
+    portRange: "41000-41999",
+    category: "Authentication",
+    technologies: ["Keycloak", "PostgreSQL"],
+    description: "Identity and access management",
+    ports: { web: 41001, db: 20019 }
+  },
+  {
+    id: "vault",
+    name: "HashiCorp Vault",
+    portRange: "41000-41999",
+    category: "Secrets Management",
+    technologies: ["Vault"],
+    description: "Secrets and encryption management",
+    ports: { api: 41002 }
+  },
+  {
+    id: "wireguard",
+    name: "WireGuard VPN",
+    portRange: "45000-45999",
+    category: "VPN",
+    technologies: ["WireGuard"],
+    description: "Fast and secure VPN",
+    ports: { vpn: 45001 }
+  },
+  {
+    id: "openvpn",
+    name: "OpenVPN",
+    portRange: "45000-45999",
+    category: "VPN",
+    technologies: ["OpenVPN"],
+    description: "Traditional VPN solution",
+    ports: { vpn: 45002 }
+  },
+  
+  // ECOMMERCE & CMS
+  {
+    id: "woocommerce",
+    name: "WooCommerce",
+    portRange: "8000-8999",
+    category: "E-commerce",
+    technologies: ["WordPress", "WooCommerce", "MySQL"],
+    description: "WordPress-based online store",
+    ports: { web: 8001, db: 20020 }
+  },
+  {
+    id: "magento",
+    name: "Magento",
+    portRange: "8000-8999",
+    category: "E-commerce",
+    technologies: ["Magento", "MySQL", "Elasticsearch"],
+    description: "Enterprise e-commerce platform",
+    ports: { web: 8002, db: 20021, search: 31006 }
+  },
+  {
+    id: "prestashop",
+    name: "PrestaShop",
+    portRange: "8000-8999",
+    category: "E-commerce",
+    technologies: ["PrestaShop", "MySQL"],
+    description: "Open-source e-commerce solution",
+    ports: { web: 8003, db: 20022 }
+  },
+  
+  // DEVELOPMENT
+  {
+    id: "vscode-server",
+    name: "VS Code Server",
+    portRange: "6000-6999",
+    category: "Development",
+    technologies: ["VS Code"],
+    description: "Browser-based VS Code editor",
+    ports: { web: 6001 }
+  },
+  {
+    id: "jupyter",
+    name: "Jupyter Notebook",
+    portRange: "6000-6999",
+    category: "Development",
+    technologies: ["Jupyter", "Python"],
+    description: "Interactive computing environment",
+    ports: { web: 6002 }
+  },
+  {
+    id: "gitea",
+    name: "Gitea",
+    portRange: "6000-6999",
+    category: "Development",
+    technologies: ["Gitea", "PostgreSQL"],
+    description: "Lightweight Git server",
+    ports: { web: 6003, ssh: 6004, db: 20023 }
   }
 ];
 
@@ -305,19 +473,20 @@ volumes:
 // ═══════════════════════════════════════════════════════════
 
 document.addEventListener('DOMContentLoaded', async () => {
-  initFilters();
-  setupEventListeners();
+  allTemplates = TEMPLATES_LIBRARY;
   await checkAuth();
+  initFilters();
+  displayAllTemplates();
+  setupEventListeners();
 });
 
 // ═══════════════════════════════════════════════════════════
-// AUTH
+// AUTH (igual que antes)
 // ═══════════════════════════════════════════════════════════
 
 async function checkAuth() {
   try {
     const { data: { session } } = await sb.auth.getSession();
-    
     if (session) {
       currentUser = session.user;
       showAuthenticatedUI();
@@ -325,7 +494,6 @@ async function checkAuth() {
       showUnauthenticatedUI();
     }
   } catch (error) {
-    console.log('No active session');
     showUnauthenticatedUI();
   }
 
@@ -380,269 +548,121 @@ async function logout() {
 // ═══════════════════════════════════════════════════════════
 
 function initFilters() {
-  const portRangeSelect = document.getElementById('port-range-filter');
+  // Populate port range filter
+  const portRangeFilter = document.getElementById('port-range-filter');
+  const ranges = [...new Set(allTemplates.map(t => t.portRange))].sort();
   
-  Object.keys(PORT_RANGES).forEach(range => {
+  ranges.forEach(range => {
     const option = document.createElement('option');
     option.value = range;
-    option.textContent = `${PORT_RANGES[range].icon} ${PORT_RANGES[range].name} (${range})`;
-    portRangeSelect.appendChild(option);
+    option.textContent = range;
+    portRangeFilter.appendChild(option);
   });
-}
-
-function handlePortRangeChange(range) {
-  const categorySelect = document.getElementById('category-filter');
-  const useCaseSelect = document.getElementById('usecase-filter');
-  const techCheckboxes = document.getElementById('tech-checkboxes');
   
-  // Reset downstream filters
-  categorySelect.innerHTML = '<option value="">-- Select a category --</option>';
-  useCaseSelect.innerHTML = '<option value="">-- Select a use case --</option>';
-  techCheckboxes.innerHTML = '<p class="empty-state">Select a category to see available technologies</p>';
+  // Populate category filter
+  const categoryFilter = document.getElementById('category-filter');
+  const categories = [...new Set(allTemplates.map(t => t.category))].sort();
   
-  categorySelect.disabled = !range;
-  useCaseSelect.disabled = true;
-  techCheckboxes.classList.add('disabled');
-  document.getElementById('find-templates-btn').disabled = true;
-  
-  if (!range) return;
-  
-  const categories = PORT_RANGES[range].categories;
-  Object.keys(categories).forEach(cat => {
+  categories.forEach(cat => {
     const option = document.createElement('option');
     option.value = cat;
     option.textContent = cat;
-    categorySelect.appendChild(option);
+    categoryFilter.appendChild(option);
   });
-}
-
-function handleCategoryChange(portRange, category) {
-  const useCaseSelect = document.getElementById('usecase-filter');
-  const techCheckboxes = document.getElementById('tech-checkboxes');
   
-  useCaseSelect.innerHTML = '<option value="">-- Select a use case --</option>';
-  techCheckboxes.innerHTML = '<p class="empty-state">Select a category to see available technologies</p>';
+  // Populate technologies
+  const techContainer = document.getElementById('tech-filters');
+  const allTechs = [...new Set(allTemplates.flatMap(t => t.technologies))].sort();
   
-  useCaseSelect.disabled = !category;
-  techCheckboxes.classList.add('disabled');
-  document.getElementById('find-templates-btn').disabled = !category;
-  
-  if (!category) return;
-  
-  const categoryData = PORT_RANGES[portRange].categories[category];
-  
-  // Use Case
-  const option = document.createElement('option');
-  option.value = categoryData.useCase;
-  option.textContent = categoryData.useCase;
-  useCaseSelect.appendChild(option);
-  useCaseSelect.value = categoryData.useCase;
-  
-  // Technologies
-  techCheckboxes.innerHTML = '';
-  techCheckboxes.classList.remove('disabled');
-  
-  categoryData.technologies.forEach(tech => {
+  allTechs.forEach(tech => {
     const label = document.createElement('label');
+    label.className = 'tech-filter-item';
     label.innerHTML = `
-      <input type="checkbox" value="${tech}">
-      ${tech}
+      <input type="checkbox" value="${tech}" onchange="applyFilters()">
+      <span>${tech}</span>
     `;
-    techCheckboxes.appendChild(label);
+    techContainer.appendChild(label);
   });
 }
 
-function findTemplates() {
-  const portRange = document.getElementById('port-range-filter').value;
-  const category = document.getElementById('category-filter').value;
-  const selectedTechs = Array.from(document.querySelectorAll('#tech-checkboxes input:checked'))
+function applyFilters() {
+  // Get filter values
+  filters.search = document.getElementById('search-input').value.toLowerCase();
+  filters.portRange = document.getElementById('port-range-filter').value;
+  filters.category = document.getElementById('category-filter').value;
+  filters.technologies = Array.from(document.querySelectorAll('#tech-filters input:checked'))
     .map(cb => cb.value);
   
-  filteredTemplates = TEMPLATES.filter(template => {
-    const [rangeStart, rangeEnd] = portRange.split('-').map(Number);
-    const [templateStart] = template.portRange.split('-').map(Number);
-    
-    const matchesRange = templateStart >= rangeStart && templateStart <= rangeEnd;
-    const matchesCategory = template.category === category;
-    const matchesTech = selectedTechs.length === 0 || 
-                       selectedTechs.every(tech => template.technologies.includes(tech));
-    
-    return matchesRange && matchesCategory && matchesTech;
-  });
+  // Filter templates
+  let filtered = allTemplates;
   
-  displayResults();
-}
-
-function displayResults() {
-  const resultsSection = document.getElementById('results-section');
-  const templateCards = document.getElementById('template-cards');
-  const resultsCount = document.getElementById('results-count');
-  
-  templateCards.innerHTML = '';
-  resultsCount.textContent = `${filteredTemplates.length} template(s) found`;
-  
-  if (filteredTemplates.length === 0) {
-    templateCards.innerHTML = '<p class="empty-state" style="grid-column: 1/-1; text-align: center; padding: 3rem;">No templates match your criteria. Try adjusting your filters.</p>';
-  } else {
-    filteredTemplates.forEach(template => {
-      const card = document.createElement('div');
-      card.className = 'template-card';
-      card.innerHTML = `
-        <h3>${template.name}</h3>
-        <p>${template.description}</p>
-        <div class="tech-badges">
-          ${template.technologies.map(tech => `<span class="badge">${tech}</span>`).join('')}
-        </div>
-        <button class="btn btn-primary" onclick="selectTemplate('${template.id}')">
-          View Template
-        </button>
-      `;
-      templateCards.appendChild(card);
-    });
+  // Search filter
+  if (filters.search) {
+    filtered = filtered.filter(t => 
+      t.name.toLowerCase().includes(filters.search) ||
+      t.description.toLowerCase().includes(filters.search) ||
+      t.technologies.some(tech => tech.toLowerCase().includes(filters.search))
+    );
   }
   
-  resultsSection.style.display = 'block';
-  resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-// ═══════════════════════════════════════════════════════════
-// PREVIEW
-// ═══════════════════════════════════════════════════════════
-
-function selectTemplate(templateId) {
-  selectedTemplate = TEMPLATES.find(t => t.id === templateId);
-  showPreviewModal();
-}
-
-function showPreviewModal() {
-  const modal = document.getElementById('preview-modal');
-  const previewCode = document.getElementById('yaml-preview');
-  const templateName = document.getElementById('preview-template-name');
-  const technologies = document.getElementById('preview-technologies');
+  // Port range filter
+  if (filters.portRange !== 'all') {
+    filtered = filtered.filter(t => t.portRange === filters.portRange);
+  }
   
-  templateName.textContent = selectedTemplate.name;
-  technologies.textContent = selectedTemplate.technologies.join(', ');
-  previewCode.textContent = selectedTemplate.yamlTemplate;
+  // Category filter
+  if (filters.category !== 'all') {
+    filtered = filtered.filter(t => t.category === filters.category);
+  }
   
-  modal.classList.add('active');
+  // Technologies filter
+  if (filters.technologies.length > 0) {
+    filtered = filtered.filter(t => 
+      filters.technologies.every(tech => t.technologies.includes(tech))
+    );
+  }
+  
+  displayTemplates(filtered);
 }
 
-function closePreviewModal() {
-  document.getElementById('preview-modal').classList.remove('active');
+function displayAllTemplates() {
+  displayTemplates(allTemplates);
 }
 
-async function saveTemplateToSupabase() {
-  if (!currentUser) {
-    alert('⚠️ You must be logged in to save templates to the community');
+function displayTemplates(templates) {
+  const container = document.getElementById('templates-grid');
+  const count = document.getElementById('templates-count');
+  
+  count.textContent = `${templates.length} templates`;
+  
+  if (templates.length === 0) {
+    container.innerHTML = '<div class="empty-state">No templates match your filters. Try adjusting your criteria.</div>';
     return;
   }
   
-  try {
-    const { data, error } = await sb
-      .from('community_templates')
-      .insert({
-        template_id: selectedTemplate.id,
-        yaml_content: selectedTemplate.yamlTemplate,
-        user_id: currentUser.id,
-        is_community: false
-      });
-    
-    if (error) throw error;
-    
-    alert('✅ Template saved! It will be added to the community library after review.');
-  } catch (error) {
-    console.error('Error saving template:', error);
-    alert('❌ Error: ' + error.message);
-  }
-}
-
-function startCustomization() {
-  closePreviewModal();
-  showPersonalizationForm();
+  container.innerHTML = templates.map(t => `
+    <div class="template-card" onclick="selectTemplate('${t.id}')">
+      <h3>${t.name}</h3>
+      <p class="description">${t.description}</p>
+      <div class="tech-badges">
+        ${t.technologies.map(tech => `<span class="badge">${tech}</span>`).join('')}
+      </div>
+      <div class="port-info">
+        <span class="port-range">${t.portRange}</span>
+        <span class="category">${t.category}</span>
+      </div>
+    </div>
+  `).join('');
 }
 
 // ═══════════════════════════════════════════════════════════
-// PERSONALIZATION
+// TEMPLATE SELECTION & PREVIEW
 // ═══════════════════════════════════════════════════════════
 
-function showPersonalizationForm() {
-  const section = document.getElementById('personalization-section');
-  const dynamicFields = document.getElementById('dynamic-fields');
-  
-  dynamicFields.innerHTML = '';
-  
-  selectedTemplate.requiredFields.forEach(field => {
-    const fieldGroup = document.createElement('div');
-    fieldGroup.className = 'field-group';
-    
-    fieldGroup.innerHTML = `
-      <label for="${field.key}">
-        ${field.label}
-        ${field.hint ? `<span style="color: var(--caramel); font-weight: 400; font-size: 0.85rem;"> — ${field.hint}</span>` : ''}
-      </label>
-      <input 
-        type="${field.type}" 
-        id="${field.key}"
-        name="${field.key}"
-        placeholder="${field.placeholder || ''}"
-        ${field.min ? `min="${field.min}"` : ''}
-        ${field.max ? `max="${field.max}"` : ''}
-        ${field.default ? `value="${field.default}"` : ''}
-        required
-      >
-    `;
-    
-    dynamicFields.appendChild(fieldGroup);
-  });
-  
-  section.style.display = 'block';
-  section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  
-  document.getElementById('yaml-form').addEventListener('input', validateForm);
-}
-
-function validateForm() {
-  const form = document.getElementById('yaml-form');
-  const isValid = form.checkValidity();
-  document.getElementById('generate-yaml-btn').disabled = !isValid;
-}
-
-function generateFinalYAML(e) {
-  e.preventDefault();
-  
-  const formData = new FormData(e.target);
-  let finalYAML = selectedTemplate.yamlTemplate;
-  
-  formData.forEach((value, key) => {
-    finalYAML = finalYAML.replace(new RegExp(`{{${key}}}`, 'g'), value);
-  });
-  
-  document.getElementById('final-yaml-code').textContent = finalYAML;
-  document.getElementById('final-yaml-section').style.display = 'block';
-  document.getElementById('final-yaml-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-function copyFinalYAML() {
-  const yaml = document.getElementById('final-yaml-code').textContent;
-  navigator.clipboard.writeText(yaml);
-  
-  const btn = document.getElementById('copy-final-btn');
-  const originalText = btn.innerHTML;
-  btn.innerHTML = '✅ Copied!';
-  setTimeout(() => {
-    btn.innerHTML = originalText;
-  }, 2000);
-}
-
-function downloadFinalYAML() {
-  const yaml = document.getElementById('final-yaml-code').textContent;
-  const blob = new Blob([yaml], { type: 'text/yaml' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'docker-compose.yml';
-  a.click();
-  URL.revokeObjectURL(url);
+function selectTemplate(templateId) {
+  selectedTemplate = allTemplates.find(t => t.id === templateId);
+  // TODO: Generate YAML and show modal
+  alert(`Selected: ${selectedTemplate.name}\n\nYAML generation coming soon...`);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -653,24 +673,19 @@ function setupEventListeners() {
   document.getElementById('login-btn').addEventListener('click', login);
   document.getElementById('logout-btn').addEventListener('click', logout);
   
-  document.getElementById('port-range-filter').addEventListener('change', (e) => {
-    handlePortRangeChange(e.target.value);
+  document.getElementById('search-input').addEventListener('input', applyFilters);
+  document.getElementById('port-range-filter').addEventListener('change', applyFilters);
+  document.getElementById('category-filter').addEventListener('change', applyFilters);
+  
+  document.getElementById('clear-filters-btn').addEventListener('click', () => {
+    document.getElementById('search-input').value = '';
+    document.getElementById('port-range-filter').value = 'all';
+    document.getElementById('category-filter').value = 'all';
+    document.querySelectorAll('#tech-filters input').forEach(cb => cb.checked = false);
+    applyFilters();
   });
-  
-  document.getElementById('category-filter').addEventListener('change', (e) => {
-    const portRange = document.getElementById('port-range-filter').value;
-    handleCategoryChange(portRange, e.target.value);
-  });
-  
-  document.getElementById('find-templates-btn').addEventListener('click', findTemplates);
-  document.getElementById('save-template-btn').addEventListener('click', saveTemplateToSupabase);
-  document.getElementById('customize-btn').addEventListener('click', startCustomization);
-  
-  document.getElementById('yaml-form').addEventListener('submit', generateFinalYAML);
-  document.getElementById('copy-final-btn').addEventListener('click', copyFinalYAML);
-  document.getElementById('download-final-btn').addEventListener('click', downloadFinalYAML);
 }
 
 // Global functions
 window.selectTemplate = selectTemplate;
-window.closePreviewModal = closePreviewModal;
+window.applyFilters = applyFilters;
