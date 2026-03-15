@@ -1,0 +1,105 @@
+# ═══════════════════════════════════════════════════════════
+# SYNC COMMUNITY TEMPLATES TO REPO
+# Runs daily to pull approved templates from Supabase
+# ═══════════════════════════════════════════════════════════
+
+name: Sync Community Templates
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Daily at midnight UTC
+  workflow_dispatch:      # Manual trigger
+
+jobs:
+  sync-templates:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          
+      - name: Install Supabase CLI
+        run: npm install -g @supabase/supabase-js
+        
+      - name: Fetch templates from Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          node << 'EOF'
+          const { createClient } = require('@supabase/supabase-js');
+          const fs = require('fs');
+          
+          const supabase = createClient(
+            process.env.SUPABASE_URL,
+            process.env.SUPABASE_KEY
+          );
+          
+          async function syncTemplates() {
+            // 1. Fetch un-synced templates
+            const { data: templates, error } = await supabase
+              .from('community_templates')
+              .select('*')
+              .eq('is_community', false);
+            
+            if (error) {
+              console.error('Error fetching templates:', error);
+              process.exit(1);
+            }
+            
+            if (templates.length === 0) {
+              console.log('No new templates to sync');
+              return;
+            }
+            
+            // 2. Create community-templates directory
+            if (!fs.existsSync('community-templates')) {
+              fs.mkdirSync('community-templates');
+            }
+            
+            // 3. Save each template
+            for (const template of templates) {
+              const filename = `${template.template_id}-${template.id.substring(0, 8)}.yml`;
+              const filepath = `community-templates/${filename}`;
+              
+              fs.writeFileSync(filepath, template.yaml_content);
+              console.log(`✅ Saved: ${filename}`);
+              
+              // 4. Mark as synced in Supabase
+              await supabase
+                .from('community_templates')
+                .update({ is_community: true })
+                .eq('id', template.id);
+            }
+            
+            console.log(`\n✅ Synced ${templates.length} template(s)`);
+          }
+          
+          syncTemplates();
+          EOF
+          
+      - name: Commit and push changes
+        run: |
+          git config user.name "GitHub Action"
+          git config user.email "action@github.com"
+          git add community-templates/
+          
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "🤖 Sync community templates from Supabase"
+            git push
+          fi
+          
+      - name: Create summary
+        run: |
+          echo "## 📦 Template Sync Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Templates synced to \`community-templates/\` directory" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          ls -lh community-templates/ >> $GITHUB_STEP_SUMMARY || echo "No templates synced" >> $GITHUB_STEP_SUMMARY
